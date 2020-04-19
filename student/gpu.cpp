@@ -6,9 +6,14 @@
  */
 
 #include <student/gpu.hpp>
-#include "list"
+#include <list>
+#include <iostream>
+#include <algorithm>
+#include <new>
+#include <string.h>
 
-
+Vertex_puller_settings::Vertex_puller_settings(){}
+Vertex_puller_settings::~Vertex_puller_settings(){}
 
 /// \addtogroup gpu_init
 /// @{
@@ -45,10 +50,15 @@ BufferID GPU::createBuffer(uint64_t size) {
   /// Velikost bufferu je v parameteru size (v bajtech).<br>
   /// Funkce by měla vrátit unikátní identifikátor identifikátor bufferu.<br>
   /// Na grafické kartě by mělo být možné alkovat libovolné množství bufferů o libovolné velikosti.<br>
-    uint64_t * buff;
-    buff = new uint64_t[size];
-    buffer_list.push_back((unsigned long)buff);
-    return buffer_list.size();
+    BufferID * buff;
+    try {
+        buff = new BufferID[size];
+        buffer_list.push_back(buff); //ukladam si ukazatele na buffery
+        return (BufferID)buff; //vracim pretypovany ukazatel
+    }
+    catch (std::bad_alloc&) {
+        return emptyID;
+    }
 }
 
 /**
@@ -60,10 +70,15 @@ void GPU::deleteBuffer(BufferID buffer) {
   /// \todo Tato funkce uvolní buffer na grafické kartě.
   /// Buffer pro smazání je vybrán identifikátorem v parameteru "buffer".
   /// Po uvolnění bufferu je identifikátor volný a může být znovu použit při vytvoření nového bufferu.
-    uint64_t * tmp_buff;
-    auto it1 = std::next(buffer_list.begin(), buffer - 1);
-    delete &it1;
-    buffer_list.erase(std::next(buffer_list.begin(), buffer - 1));
+    BufferID * tmp; //pomocny ukazatel na buffer v listu bufferu
+    std::list<BufferID *>::iterator it; //iterator na hledani bufferu v listu
+    it = std::find(buffer_list.begin(), buffer_list.end(), (BufferID *)buffer); //nalezeni bufferu v listu
+    //kdyz buffer naleznu
+    if (it != buffer_list.end()){
+        tmp = *it; //ulozim si hodnotu iteratoru, tedy ukazatel na buffer
+        buffer_list.erase(it); //smazu zaznam o bufferu z listu
+        delete tmp; //dealokuji buffer
+    }
 }
 
 /**
@@ -80,6 +95,9 @@ void GPU::setBufferData(BufferID buffer, uint64_t offset, uint64_t size, void co
   /// Parametr size určuje, kolik dat (v bajtech) se překopíruje.<br>
   /// Parametr offset určuje místo v bufferu (posun v bajtech) kam se data nakopírují.<br>
   /// Parametr data obsahuje ukazatel na data na cpu pro kopírování.<br>
+    std::list<BufferID *>::iterator it; //iterator na hledani bufferu v listu
+    it = std::find(buffer_list.begin(), buffer_list.end(), (BufferID *)buffer); //nalezeni bufferu v listu
+    memcpy(*it + offset, data, size);
 }
 
 /**
@@ -100,6 +118,9 @@ void GPU::getBufferData(BufferID buffer,
   /// Parametr size určuje kolik dat (v bajtech) se překopíruje.<br>
   /// Parametr offset určuje místo v bufferu (posun v bajtech) odkud se začne kopírovat.<br>
   /// Parametr data obsahuje ukazatel, kam se data nakopírují.<br>
+    std::list<BufferID *>::iterator it; //iterator na hledani bufferu v listu
+    it = std::find(buffer_list.begin(), buffer_list.end(), (BufferID *)buffer); //nalezeni bufferu v listu
+    memcpy(data,*it + offset, size);
 }
 
 /**
@@ -113,7 +134,12 @@ bool GPU::isBuffer(BufferID buffer) {
   /// \todo Tato funkce by měla vrátit true pokud buffer je identifikátor existující bufferu.<br>
   /// Tato funkce by měla vrátit false, pokud buffer není identifikátor existujícího bufferu. (nebo bufferu, který byl smazán).<br>
   /// Pro emptyId vrací false.<br>
-  return false; 
+    std::list<BufferID *>::iterator it; //iterator na hledani bufferu v listu
+    it = std::find(buffer_list.begin(), buffer_list.end(), (BufferID *)buffer); //nalezeni bufferu v listu
+    //kdyz buffer naleznu
+    if (buffer == emptyID)
+        return false;
+    return it != buffer_list.end();
 }
 
 /// @}
@@ -132,7 +158,15 @@ ObjectID GPU::createVertexPuller     (){
   /// \todo Tato funkce vytvoří novou práznou tabulku s nastavením pro vertex puller.<br>
   /// Funkce by měla vrátit identifikátor nové tabulky.
   /// Prázdná tabulka s nastavením neobsahuje indexování a všechny čtecí hlavy jsou vypnuté.
-  return emptyID;
+    ObjectID * vertex_puller;
+    try {
+        vertex_puller  = reinterpret_cast<ObjectID *>(new Vertex_puller_settings);
+        vertex_puller_list.push_back(vertex_puller); //ukladam si ukazatele na buffery
+        return (ObjectID)vertex_puller; //vracim pretypovany ukazatel
+    }
+    catch (std::bad_alloc&) {
+        return emptyID;
+    }
 }
 
 /**
@@ -144,6 +178,15 @@ void     GPU::deleteVertexPuller     (VertexPullerID vao){
   /// \todo Tato funkce by měla odstranit tabulku s nastavení pro vertex puller.<br>
   /// Parameter "vao" obsahuje identifikátor tabulky s nastavením.<br>
   /// Po uvolnění nastavení je identifiktátor volný a může být znovu použit.<br>
+    BufferID * tmp; //pomocny ukazatel na buffer v listu bufferu
+    std::list<ObjectID *>::iterator it; //iterator na hledani bufferu v listu
+    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), (ObjectID *)vao); //nalezeni bufferu v listu
+    //kdyz buffer naleznu
+    if (it != vertex_puller_list.end()){
+        tmp = *it; //ulozim si hodnotu iteratoru, tedy ukazatel na buffer
+        vertex_puller_list.erase(it); //smazu zaznam o bufferu z listu
+        delete tmp; //dealokuji buffer
+    }
 }
 
 /**
@@ -164,6 +207,9 @@ void     GPU::setVertexPullerHead    (VertexPullerID vao,uint32_t head,Attribute
   /// Parametr "stride" nastaví krok čtecí hlavy.<br>
   /// Parametr "offset" nastaví počáteční pozici čtecí hlavy.<br>
   /// Parametr "buffer" vybere buffer, ze kterého bude čtecí hlava číst.<br>
+    std::list<ObjectID *>::iterator it; //iterator na hledani vertexu v listu
+    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), (ObjectID *)vao); //nalezeni vertexu v listu
+    (*(*it))
 }
 
 /**

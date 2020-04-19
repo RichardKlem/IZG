@@ -65,7 +65,25 @@ class GPU{
     /// @{
     /// \todo zde si můžete vytvořit proměnné grafické karty (buffery, programy, ...)
     /// @}
-    std::list<BufferID> buffer_list;
+    std::list<BufferID *> buffer_list; //pole ukazatelu na buffery
+    std::list<ObjectID *> vertex_puller_list; //pole ukazatelu na buffery
+
+
+};
+struct Head{
+    BufferID buffer_id;
+    uint32_t  offset;
+    uint32_t  stride;
+    AttributeType attrib_type;
+    bool enabled;
 };
 
+class Vertex_puller_settings{
+public:
+    Vertex_puller_settings();
+    virtual ~Vertex_puller_settings();
+    Head hlavy[maxAttributes];
+    BufferID buffer_id;
+    IndexType index_type;
+};
 
