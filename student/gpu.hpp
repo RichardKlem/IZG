@@ -65,9 +65,11 @@ class GPU{
     /// @{
     /// \todo zde si můžete vytvořit proměnné grafické karty (buffery, programy, ...)
     /// @}
-    std::list<BufferID> buffer_list; //pole ukazatelu na buffery
-    std::list<ObjectID> vertex_puller_list; //pole ukazatelu na buffery
-    ObjectID * active_vertex_puller;
+    std::list<BufferID> bufferList; //pole ukazatelu na buffery
+    std::list<ObjectID> vertexPullerList; //pole ukazatelu na buffery
+    std::list<ProgramID> programList;
+    ObjectID * activeVertexPuller;
+    ProgramID * activeProgram;
 
 
 };
@@ -91,4 +93,28 @@ class Vertex_puller_settings{
         Head heads[maxAttributes];
         Indexing indexing;
 };
+
+class Program{
+    public:
+    VertexShader * vertexShader{};
+    FragmentShader * fragmentShader{};
+    Uniforms uniforms;
+    AttributeType attributeType = AttributeType::EMPTY;
+};
+
+struct colorPixel{
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+};
+
+class FrameBuffer{
+    public:
+        colorPixel * colorBuffer;
+        float * depthBuffer;
+        uint32_t width;
+        uint32_t height;
+};
+
 

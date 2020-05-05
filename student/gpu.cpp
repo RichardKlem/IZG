@@ -23,7 +23,7 @@ Vertex_puller_settings::~Vertex_puller_settings(){}
  */
 GPU::GPU(){
   /// \todo Zde můžete alokovat/inicializovat potřebné proměnné grafické karty
-  active_vertex_puller = nullptr;
+  activeVertexPuller = nullptr;
 }
 
 /**
@@ -54,7 +54,7 @@ BufferID GPU::createBuffer(uint64_t size) {
     BufferID * buff;
     try {
         buff = new BufferID[size];
-        buffer_list.push_back((BufferID)buff); //ukladam si ukazatele na buffery
+        bufferList.push_back((BufferID)buff); //ukladam si ukazatele na buffery
         return (BufferID)buff; //vracim pretypovany ukazatel
     }
     catch (std::bad_alloc&) {
@@ -73,11 +73,11 @@ void GPU::deleteBuffer(BufferID buffer) {
   /// Po uvolnění bufferu je identifikátor volný a může být znovu použit při vytvoření nového bufferu.
     BufferID * tmp; //pomocny ukazatel na buffer v listu bufferu
     std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(buffer_list.begin(), buffer_list.end(), buffer); //nalezeni bufferu v listu
+    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
     //kdyz buffer naleznu
-    if (it != buffer_list.end()){
+    if (it != bufferList.end()){
         tmp = (BufferID *) *it; //ulozim si hodnotu iteratoru, tedy ukazatel na buffer
-        buffer_list.erase(it); //smazu zaznam o bufferu z listu
+        bufferList.erase(it); //smazu zaznam o bufferu z listu
         delete tmp; //dealokuji buffer
     }
 }
@@ -97,7 +97,7 @@ void GPU::setBufferData(BufferID buffer, uint64_t offset, uint64_t size, void co
   /// Parametr offset určuje místo v bufferu (posun v bajtech) kam se data nakopírují.<br>
   /// Parametr data obsahuje ukazatel na data na cpu pro kopírování.<br>
     std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(buffer_list.begin(), buffer_list.end(), buffer); //nalezeni bufferu v listu
+    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
     memcpy(reinterpret_cast<void *>(*it + (BufferID) offset), data, size);
 }
 
@@ -120,7 +120,7 @@ void GPU::getBufferData(BufferID buffer,
   /// Parametr offset určuje místo v bufferu (posun v bajtech) odkud se začne kopírovat.<br>
   /// Parametr data obsahuje ukazatel, kam se data nakopírují.<br>
     std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(buffer_list.begin(), buffer_list.end(), buffer); //nalezeni bufferu v listu
+    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
     memcpy(data, reinterpret_cast<const void *>(*it + (BufferID)offset), size);
 }
 
@@ -136,11 +136,11 @@ bool GPU::isBuffer(BufferID buffer) {
   /// Tato funkce by měla vrátit false, pokud buffer není identifikátor existujícího bufferu. (nebo bufferu, který byl smazán).<br>
   /// Pro emptyId vrací false.<br>
     std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(buffer_list.begin(), buffer_list.end(), buffer); //nalezeni bufferu v listu
+    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
     //kdyz buffer naleznu
     if (buffer == emptyID)
         return false;
-    return it != buffer_list.end();
+    return it != bufferList.end();
 }
 
 /// @}
@@ -160,7 +160,7 @@ ObjectID GPU::createVertexPuller     (){
   /// Funkce by měla vrátit identifikátor nové tabulky.
   /// Prázdná tabulka s nastavením neobsahuje indexování a všechny čtecí hlavy jsou vypnuté.
     auto * vertex_puller = new Vertex_puller_settings;
-    vertex_puller_list.push_back((ObjectID) vertex_puller); //ukladam si ukazatele na buffery
+    vertexPullerList.push_back((ObjectID) vertex_puller); //ukladam si ukazatele na buffery
         return (ObjectID) vertex_puller; //vracim pretypovany ukazatel
 }
 
@@ -175,11 +175,11 @@ void     GPU::deleteVertexPuller     (VertexPullerID vao){
   /// Po uvolnění nastavení je identifiktátor volný a může být znovu použit.<br>
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     //kdyz VertexPulleru naleznu
-    if (it != vertex_puller_list.end()){
+    if (it != vertexPullerList.end()){
         tmp = (ObjectID *) *it; //ulozim si hodnotu iteratoru, tedy ukazatel na VertexPulleru
-        vertex_puller_list.erase(it); //smazu zaznam o bufferu z listu
+        vertexPullerList.erase(it); //smazu zaznam o bufferu z listu
         delete tmp; //dealokuji buffer
     }
 }
@@ -205,9 +205,9 @@ void     GPU::setVertexPullerHead    (VertexPullerID vao,uint32_t head,Attribute
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     Vertex_puller_settings * vao_tmp;
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     //kdyz VertexPulleru naleznu
-    if (it != vertex_puller_list.end()){
+    if (it != vertexPullerList.end()){
         vao_tmp = (Vertex_puller_settings *) *it;
         vao_tmp->heads[head].attrib_type = type;
         vao_tmp->heads[head].stride = stride;
@@ -231,8 +231,8 @@ void     GPU::setVertexPullerIndexing(VertexPullerID vao,IndexType type,BufferID
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     Vertex_puller_settings * vao_tmp;
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
-    if (it != vertex_puller_list.end()){
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
+    if (it != vertexPullerList.end()){
         vao_tmp = (Vertex_puller_settings *) *it;
         vao_tmp->indexing.buffer_id = buffer;
         vao_tmp->indexing.index_type = type;
@@ -253,9 +253,9 @@ void     GPU::enableVertexPullerHead (VertexPullerID vao,uint32_t head){
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     Vertex_puller_settings * vao_tmp;
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     //kdyz VertexPulleru naleznu
-    if (it != vertex_puller_list.end()){
+    if (it != vertexPullerList.end()){
         vao_tmp = (Vertex_puller_settings *) *it;
         vao_tmp->heads[head].enabled = true;
     }
@@ -274,9 +274,9 @@ void     GPU::disableVertexPullerHead(VertexPullerID vao,uint32_t head){
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     Vertex_puller_settings * vao_tmp;
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     //kdyz VertexPulleru naleznu
-    if (it != vertex_puller_list.end()){
+    if (it != vertexPullerList.end()){
         vao_tmp = (Vertex_puller_settings *) *it;
         vao_tmp->heads[head].enabled = false;
     }
@@ -293,10 +293,10 @@ void     GPU::bindVertexPuller       (VertexPullerID vao){
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     Vertex_puller_settings * vao_tmp;
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     //kdyz VertexPulleru naleznu
-    if (it != vertex_puller_list.end()){
-        this->active_vertex_puller = (ObjectID *) *it;
+    if (it != vertexPullerList.end()){
+        this->activeVertexPuller = (ObjectID *) *it;
     }
 }
 
@@ -306,7 +306,7 @@ void     GPU::bindVertexPuller       (VertexPullerID vao){
 void     GPU::unbindVertexPuller     (){
   /// \todo Tato funkce deaktivuje vertex puller.
   /// To většinou znamená, že se vybere neexistující "emptyID" vertex puller.
-    this->active_vertex_puller = nullptr;
+    this->activeVertexPuller = nullptr;
 }
 
 /**
@@ -322,9 +322,9 @@ bool     GPU::isVertexPuller         (VertexPullerID vao){
     ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
     Vertex_puller_settings * vao_tmp;
     std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertex_puller_list.begin(), vertex_puller_list.end(), vao); //nalezeni VertexPulleru v listu
+    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     //kdyz VertexPulleru naleznu
-    return it != vertex_puller_list.end();
+    return it != vertexPullerList.end();
 }
 
 /// @}
@@ -338,12 +338,14 @@ bool     GPU::isVertexPuller         (VertexPullerID vao){
  *
  * @return shader program id
  */
-ProgramID        GPU::createProgram         (){
+ProgramID GPU::createProgram(){
   /// \todo Tato funkce by měla vytvořit nový shader program.<br>
   /// Funkce vrací unikátní identifikátor nového proramu.<br>
   /// Program je seznam nastavení, které obsahuje: ukazatel na vertex a fragment shader.<br>
   /// Dále obsahuje uniformní proměnné a typ výstupních vertex attributů z vertex shaderu, které jsou použity pro interpolaci do fragment atributů.<br>
-  return emptyID;
+  auto program = new Program;
+  programList.push_back((ProgramID) program);
+  return (ProgramID) program;
 }
 
 /**
@@ -355,6 +357,13 @@ void             GPU::deleteProgram         (ProgramID prg){
   /// \todo Tato funkce by měla smazat vybraný shader program.<br>
   /// Funkce smaže nastavení shader programu.<br>
   /// Identifikátor programu se stane volným a může být znovu využit.<br>
+    ProgramID * tmp;
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end()){
+        tmp = (ProgramID *) *it;
+        programList.erase(it);
+        delete tmp;
+    }
 }
 
 /**
@@ -366,6 +375,11 @@ void             GPU::deleteProgram         (ProgramID prg){
  */
 void             GPU::attachShaders         (ProgramID prg,VertexShader vs,FragmentShader fs){
   /// \todo Tato funkce by měla připojít k vybranému shader programu vertex a fragment shader.
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end()){
+        ((Program *) *it)->vertexShader = &vs;
+        ((Program *) *it)->fragmentShader = &fs;
+    }
 }
 
 /**
@@ -375,7 +389,7 @@ void             GPU::attachShaders         (ProgramID prg,VertexShader vs,Fragm
  * @param attrib id of attribute
  * @param type type of attribute
  */
-void             GPU::setVS2FSType          (ProgramID prg,uint32_t attrib,AttributeType type){
+void             GPU::setVS2FSType          (ProgramID prg, uint32_t attrib, AttributeType type){
   /// \todo tato funkce by měla zvolit typ vertex atributu, který je posílán z vertex shaderu do fragment shaderu.<br>
   /// V průběhu rasterizace vznikají fragment.<br>
   /// Fragment obsahují fragment atributy.<br>
@@ -391,6 +405,7 @@ void             GPU::setVS2FSType          (ProgramID prg,uint32_t attrib,Attri
  */
 void             GPU::useProgram            (ProgramID prg){
   /// \todo tato funkce by měla vybrat aktivní shader program.
+    this->activeProgram = (ProgramID *)prg;
 }
 
 /**
@@ -403,7 +418,8 @@ void             GPU::useProgram            (ProgramID prg){
 bool             GPU::isProgram             (ProgramID prg){
   /// \todo tato funkce by měla zjistit, zda daný program existuje.<br>
   /// Funkce vráti true, pokud program existuje.<br>
-  return false;
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    return it != programList.end();
 }
 
 /**
@@ -413,11 +429,14 @@ bool             GPU::isProgram             (ProgramID prg){
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniform1f      (ProgramID prg,uint32_t uniformId,float     const&d){
+void             GPU::programUniform1f      (ProgramID prg, uint32_t uniformId, float const &d){
   /// \todo tato funkce by měla nastavit uniformní proměnnou shader programu.<br>
   /// Parametr "prg" vybírá shader program.<br>
   /// Parametr "uniformId" vybírá uniformní proměnnou. Maximální počet uniformních proměnných je uložen v programné \link maxUniforms \endlink.<br>
   /// Parametr "d" obsahuje data (1 float).<br>
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end())
+        ((Program *) *it)->uniforms.uniform[uniformId].v1 = d;
 }
 
 /**
@@ -427,9 +446,12 @@ void             GPU::programUniform1f      (ProgramID prg,uint32_t uniformId,fl
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniform2f      (ProgramID prg,uint32_t uniformId,glm::vec2 const&d){
+void             GPU::programUniform2f      (ProgramID prg, uint32_t uniformId, glm::vec2 const&d){
   /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává 2 floaty.
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end())
+        ((Program *) *it)->uniforms.uniform[uniformId].v2 = d;
 }
 
 /**
@@ -442,6 +464,9 @@ void             GPU::programUniform2f      (ProgramID prg,uint32_t uniformId,gl
 void             GPU::programUniform3f      (ProgramID prg,uint32_t uniformId,glm::vec3 const&d){
   /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává 3 floaty.
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end())
+        ((Program *) *it)->uniforms.uniform[uniformId].v3 = d;
 }
 
 /**
@@ -454,6 +479,9 @@ void             GPU::programUniform3f      (ProgramID prg,uint32_t uniformId,gl
 void             GPU::programUniform4f      (ProgramID prg,uint32_t uniformId,glm::vec4 const&d){
   /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává 4 floaty.
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end())
+        ((Program *) *it)->uniforms.uniform[uniformId].v4 = d;
 }
 
 /**
@@ -466,6 +494,9 @@ void             GPU::programUniform4f      (ProgramID prg,uint32_t uniformId,gl
 void             GPU::programUniformMatrix4f(ProgramID prg,uint32_t uniformId,glm::mat4 const&d){
   /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává matici 4x4 (16 floatů).
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end())
+        ((Program *) *it)->uniforms.uniform[uniformId].m4 = d;
 }
 
 /// @}
@@ -484,19 +515,20 @@ void             GPU::programUniformMatrix4f(ProgramID prg,uint32_t uniformId,gl
  * @param width width of framebuffer
  * @param height height of framebuffer
  */
-void GPU::createFramebuffer      (uint32_t width,uint32_t height){
+void GPU::createFramebuffer(uint32_t width, uint32_t height){
   /// \todo Tato funkce by měla alokovat framebuffer od daném rozlišení.<br>
   /// Framebuffer se skládá z barevného a hloukového bufferu.<br>
   /// Buffery obsahují width x height pixelů.<br>
   /// Barevný pixel je složen z 4 x uint8_t hodnot - to reprezentuje RGBA barvu.<br>
   /// Hloubkový pixel obsahuje 1 x float - to reprezentuje hloubku.<br>
   /// Nultý pixel framebufferu je vlevo dole.<br>
+
 }
 
 /**
  * @brief This function deletes framebuffer.
  */
-void GPU::deleteFramebuffer      (){
+void GPU::deleteFramebuffer(){
   /// \todo tato funkce by měla dealokovat framebuffer.
 }
 
@@ -506,7 +538,7 @@ void GPU::deleteFramebuffer      (){
  * @param width new width of framebuffer
  * @param height new heght of framebuffer
  */
-void     GPU::resizeFramebuffer(uint32_t width,uint32_t height){
+void GPU::resizeFramebuffer(uint32_t width,uint32_t height){
   /// \todo Tato funkce by měla změnit velikost framebuffer.
 }
 

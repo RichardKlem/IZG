@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include <BasicCamera/OrbitCamera.h>
 #include <BasicCamera/PerspectiveCamera.h>
