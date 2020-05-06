@@ -10,7 +10,8 @@
 #include <iostream>
 #include <algorithm>
 #include <new>
-#include <string.h>
+#include <cstring>
+#include <array>
 
 Vertex_puller_settings::Vertex_puller_settings(){}
 Vertex_puller_settings::~Vertex_puller_settings(){}
@@ -24,6 +25,7 @@ Vertex_puller_settings::~Vertex_puller_settings(){}
 GPU::GPU(){
   /// \todo Zde můžete alokovat/inicializovat potřebné proměnné grafické karty
   activeVertexPuller = nullptr;
+  frameBuffer = nullptr;
 }
 
 /**
@@ -522,7 +524,7 @@ void GPU::createFramebuffer(uint32_t width, uint32_t height){
   /// Barevný pixel je složen z 4 x uint8_t hodnot - to reprezentuje RGBA barvu.<br>
   /// Hloubkový pixel obsahuje 1 x float - to reprezentuje hloubku.<br>
   /// Nultý pixel framebufferu je vlevo dole.<br>
-
+    this->frameBuffer = new FrameBuffer(width, height);
 }
 
 /**
@@ -530,6 +532,7 @@ void GPU::createFramebuffer(uint32_t width, uint32_t height){
  */
 void GPU::deleteFramebuffer(){
   /// \todo tato funkce by měla dealokovat framebuffer.
+  delete this->frameBuffer;
 }
 
 /**
@@ -540,6 +543,8 @@ void GPU::deleteFramebuffer(){
  */
 void GPU::resizeFramebuffer(uint32_t width,uint32_t height){
   /// \todo Tato funkce by měla změnit velikost framebuffer.
+    GPU::deleteFramebuffer();
+    GPU::createFramebuffer(width, height);
 }
 
 /**
@@ -549,7 +554,8 @@ void GPU::resizeFramebuffer(uint32_t width,uint32_t height){
  */
 uint8_t* GPU::getFramebufferColor  (){
   /// \todo Tato funkce by měla vrátit ukazatel na začátek barevného bufferu.<br>
-  return nullptr;
+    return
+    reinterpret_cast<uint8_t *>(this->frameBuffer->colorBuffer);
 }
 
 /**
@@ -559,7 +565,7 @@ uint8_t* GPU::getFramebufferColor  (){
  */
 float* GPU::getFramebufferDepth    (){
   /// \todo tato funkce by mla vrátit ukazatel na začátek hloubkového bufferu.<br>
-  return nullptr;
+  return this->frameBuffer->depthBuffer;
 }
 
 /**
@@ -569,7 +575,7 @@ float* GPU::getFramebufferDepth    (){
  */
 uint32_t GPU::getFramebufferWidth (){
   /// \todo Tato funkce by měla vrátit šířku framebufferu.
-  return 0;
+  return this->frameBuffer->width;
 }
 
 /**
@@ -579,7 +585,7 @@ uint32_t GPU::getFramebufferWidth (){
  */
 uint32_t GPU::getFramebufferHeight(){
   /// \todo Tato funkce by měla vrátit výšku framebufferu.
-  return 0;
+  return this->frameBuffer->height;
 }
 
 /// @}
@@ -597,17 +603,18 @@ uint32_t GPU::getFramebufferHeight(){
  * @param b blue channel
  * @param a alpha channel
  */
-void            GPU::clear                 (float r,float g,float b,float a){
+void GPU::clear(float r,float g,float b,float a){
   /// \todo Tato funkce by měla vyčistit framebuffer.<br>
   /// Barevný buffer vyčistí na barvu podle parametrů r g b a (0 - nulová intenzita, 1 a větší - maximální intenzita).<br>
   /// (0,0,0) - černá barva, (1,1,1) - bílá barva.<br>
   /// Hloubkový buffer nastaví na takovou hodnotu, která umožní rasterizaci trojúhelníka, který leží v rámci pohledového tělesa.<br>
   /// Hloubka by měla být tedy větší než maximální hloubka v NDC (normalized device coordinates).<br>
+
 }
 
 
 
-void            GPU::drawTriangles         (uint32_t  nofVertices){
+void GPU::drawTriangles(uint32_t  nofVertices){
   /// \todo Tato funkce vykreslí trojúhelníky podle daného nastavení.<br>
   /// Vrcholy se budou vybírat podle nastavení z aktivního vertex pulleru (pomocí bindVertexPuller).<br>
   /// Vertex shader a fragment shader se zvolí podle aktivního shader programu (pomocí useProgram).<br>
@@ -615,3 +622,9 @@ void            GPU::drawTriangles         (uint32_t  nofVertices){
 }
 
 /// @}
+FrameBuffer::FrameBuffer(uint32_t width, uint32_t height) {
+    this->height = height;
+    this->width = width;
+    this->colorBuffer = new  colorPixel [width * height];
+    this->depthBuffer = new float[width * height];
+}

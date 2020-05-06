@@ -9,6 +9,22 @@
 #include <student/fwd.hpp>
 #include "list"
 
+struct colorPixel{
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+};
+
+class FrameBuffer{
+    public:
+        colorPixel * colorBuffer = nullptr;
+        float * depthBuffer = nullptr;
+        uint32_t width;
+        uint32_t height;
+        FrameBuffer(uint32_t width, uint32_t height);
+};
+
 /**
  * @brief This class represent software GPU
  */
@@ -70,7 +86,7 @@ class GPU{
     std::list<ProgramID> programList;
     ObjectID * activeVertexPuller;
     ProgramID * activeProgram;
-
+    FrameBuffer * frameBuffer;
 
 };
 struct Head{
@@ -102,19 +118,6 @@ class Program{
     AttributeType attributeType = AttributeType::EMPTY;
 };
 
-struct colorPixel{
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
-};
 
-class FrameBuffer{
-    public:
-        colorPixel * colorBuffer;
-        float * depthBuffer;
-        uint32_t width;
-        uint32_t height;
-};
 
 
