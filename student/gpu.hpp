@@ -9,20 +9,21 @@
 #include <student/fwd.hpp>
 #include "list"
 
-struct colorPixel{
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
-};
 
 class FrameBuffer{
     public:
-        colorPixel * colorBuffer = nullptr;
+        uint8_t * colorBuffer = nullptr;
         float * depthBuffer = nullptr;
         uint32_t width;
         uint32_t height;
         FrameBuffer(uint32_t width, uint32_t height);
+};
+class Program{
+public:
+    VertexShader vertexShader{};
+    FragmentShader fragmentShader{};
+    Uniforms uniforms;
+    AttributeType attributeType = AttributeType::EMPTY;
 };
 
 /**
@@ -88,6 +89,9 @@ class GPU{
     ProgramID * activeProgram;
     FrameBuffer * frameBuffer;
 
+    void vertexProcessor(uint32_t nofVertices, OutVertex *outVertices, Program * program);
+
+    OutVertex getClippedPoint(OutVertex a, OutVertex b);
 };
 struct Head{
     BufferID buffer_id;
@@ -98,6 +102,7 @@ struct Head{
 };
 
 struct Indexing{
+    bool enabled;
     BufferID buffer_id;
     IndexType index_type;
 };
@@ -109,15 +114,14 @@ class Vertex_puller_settings{
         Head heads[maxAttributes];
         Indexing indexing;
 };
-
-class Program{
-    public:
-    VertexShader * vertexShader{};
-    FragmentShader * fragmentShader{};
-    Uniforms uniforms;
-    AttributeType attributeType = AttributeType::EMPTY;
+struct PrimitiveTriangle{
+    OutVertex ov1;
+    OutVertex ov2;
+    OutVertex ov3;
 };
 
 
-
+float normalize_color(uint8_t num, uint8_t normalizator, bool trunc);
+uint8_t denormalize_color(float num, uint8_t normalizer, bool trunc);
+float fit_color(float num);
 

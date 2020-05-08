@@ -12,6 +12,8 @@
 #include <new>
 #include <cstring>
 #include <array>
+#include <vector>
+#include <typeinfo>
 
 Vertex_puller_settings::Vertex_puller_settings(){}
 Vertex_puller_settings::~Vertex_puller_settings(){}
@@ -162,6 +164,7 @@ ObjectID GPU::createVertexPuller     (){
   /// Funkce by měla vrátit identifikátor nové tabulky.
   /// Prázdná tabulka s nastavením neobsahuje indexování a všechny čtecí hlavy jsou vypnuté.
     auto * vertex_puller = new Vertex_puller_settings;
+    vertex_puller->indexing.enabled = false;
     vertexPullerList.push_back((ObjectID) vertex_puller); //ukladam si ukazatele na buffery
         return (ObjectID) vertex_puller; //vracim pretypovany ukazatel
 }
@@ -236,6 +239,7 @@ void     GPU::setVertexPullerIndexing(VertexPullerID vao,IndexType type,BufferID
     it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
     if (it != vertexPullerList.end()){
         vao_tmp = (Vertex_puller_settings *) *it;
+        vao_tmp->indexing.enabled = true;
         vao_tmp->indexing.buffer_id = buffer;
         vao_tmp->indexing.index_type = type;
     }
@@ -379,8 +383,8 @@ void             GPU::attachShaders         (ProgramID prg,VertexShader vs,Fragm
   /// \todo Tato funkce by měla připojít k vybranému shader programu vertex a fragment shader.
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end()){
-        ((Program *) *it)->vertexShader = &vs;
-        ((Program *) *it)->fragmentShader = &fs;
+        ((Program *) *it)->vertexShader = vs;
+        ((Program *) *it)->fragmentShader = fs;
     }
 }
 
@@ -554,8 +558,7 @@ void GPU::resizeFramebuffer(uint32_t width,uint32_t height){
  */
 uint8_t* GPU::getFramebufferColor  (){
   /// \todo Tato funkce by měla vrátit ukazatel na začátek barevného bufferu.<br>
-    return
-    reinterpret_cast<uint8_t *>(this->frameBuffer->colorBuffer);
+    return reinterpret_cast<uint8_t *>(this->frameBuffer->colorBuffer);
 }
 
 /**
@@ -609,9 +612,23 @@ void GPU::clear(float r,float g,float b,float a){
   /// (0,0,0) - černá barva, (1,1,1) - bílá barva.<br>
   /// Hloubkový buffer nastaví na takovou hodnotu, která umožní rasterizaci trojúhelníka, který leží v rámci pohledového tělesa.<br>
   /// Hloubka by měla být tedy větší než maximální hloubka v NDC (normalized device coordinates).<br>
+    r = (uint8_t )denormalize_color(r, (uint8_t) 256, true);
+    g = (uint8_t )denormalize_color(g, (uint8_t) 256, true);
+    b = (uint8_t )denormalize_color(b, (uint8_t) 256, true);
+    a = (uint8_t )denormalize_color(a, (uint8_t) 256, true);
 
+    uint8_t * colorBuffer = getFramebufferColor();
+    float * depthBuffer = getFramebufferDepth();
+    uint32_t frameBufferSize = getFramebufferWidth() * getFramebufferHeight();
+
+    for (int i = 0; i < frameBufferSize; i++){
+        colorBuffer[4 * i] = r;
+        colorBuffer[4 * i + 1] = g;
+        colorBuffer[4 * i + 2] = b;
+        colorBuffer[4 * i + 3] = a;
+        depthBuffer[i] = FLT_MAX;
+    }
 }
-
 
 
 void GPU::drawTriangles(uint32_t  nofVertices){
@@ -619,12 +636,198 @@ void GPU::drawTriangles(uint32_t  nofVertices){
   /// Vrcholy se budou vybírat podle nastavení z aktivního vertex pulleru (pomocí bindVertexPuller).<br>
   /// Vertex shader a fragment shader se zvolí podle aktivního shader programu (pomocí useProgram).<br>
   /// Parametr "nofVertices" obsahuje počet vrcholů, který by se měl vykreslit (3 pro jeden trojúhelník).<br>
+    if (activeVertexPuller == nullptr or activeProgram == nullptr)
+        throw std::range_error("Vertex puller or Program is NULL, which cannot be.");
+    if (nofVertices < 3 or nofVertices % 3 != 0)
+        throw std::range_error("Parameter nofVertices has invalid value.");
+
+    auto * outVertices = new OutVertex[nofVertices];
+    std::vector<PrimitiveTriangle> primitiveTriangles;
+    primitiveTriangles.reserve(nofVertices/3);
+    Program * program = (Program *) * std::find(programList.begin(), programList.end(), (ProgramID) activeProgram);
+
+    /*---VERTEX PROCESSOR---*/
+    vertexProcessor(nofVertices, outVertices, program);
+    /*---PRIMITIVE ASSEMBLY---*/
+    for (int i = 0; i < nofVertices/3; i++)
+        primitiveTriangles.push_back(PrimitiveTriangle{outVertices[i * 3], outVertices[i * 3 + 1], outVertices[i * 3 + 2]});
+    /*---CLIPPING---*/
+
+    OutVertex a, b, c, n;
+    bool aIsOut, bIsOut, cIsOut;
+    int x = 0, y = 1, z = 2, w = 3;
+    std::vector<PrimitiveTriangle> newTriangles ;
+
+    for (auto primitiveTriangle : primitiveTriangles){
+        a = primitiveTriangle.ov1;
+        b = primitiveTriangle.ov2;
+        c = primitiveTriangle.ov3;
+        aIsOut = -a.gl_Position[w] > a.gl_Position[z];
+        bIsOut = -b.gl_Position[w] > b.gl_Position[z];
+        cIsOut = -c.gl_Position[w] > c.gl_Position[z];
+
+        if (aIsOut && bIsOut && cIsOut)
+            ;
+        else if (!aIsOut && !bIsOut && !cIsOut){
+            newTriangles.push_back(primitiveTriangle);
+            continue;
+        }
+        // 1 new triangle
+        /*else if (aIsOut && bIsOut){
+            n = getClippedPoint(c, a); //override point A
+            primitiveTriangle.ov1 = n;
+            n = getClippedPoint(c, b); //override point B
+            primitiveTriangle.ov2 = n;
+        }*/
+
+    }
+}
+
+OutVertex GPU::getClippedPoint(OutVertex a, OutVertex b){
+    float numerator = (-a.gl_Position[3] - a.gl_Position[2]);
+    float denominator = (b.gl_Position[3] - a.gl_Position[3] + b.gl_Position[2] - a.gl_Position[2]);
+    float t =  numerator/denominator;
+    OutVertex x;
+
+
+    x.gl_Position = a.gl_Position + t * (b.gl_Position - a.gl_Position);
+    float *f;
+    glm::vec2 *vec2; ///< vector of two floats
+    glm::vec3 *vec3; ///< vector of three floats
+    glm::vec4 * vec4; ///< vector of four floats
+    glm::vec4 * vectt; ///< vector of four floats
+    Attribute * tt;
+    float ttt[5];
+    //tt = ttt;
+    if (typeid(vec4) == typeid(vectt))
+        printf("AHoj\n");
+
+    for (int i = 0; i < maxAttributes; i++){
+        if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(f)>::type))
+            printf("FLOAT\n");
+        else if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(vec2)>::type))
+            printf("VEC2\n");
+        else if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(vec3)>::type))
+            printf("VEC3\n");
+        else if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(vec4)>::type))
+            printf("VEC4\n");
+        exit(55);
+    }
+    /*    switch (){
+            case :
+                x.attributes[i].v1 = a.attributes[i].v1 + t * (b.attributes[i].v1 - a.attributes[i].v1);
+            case AttributeType::VEC2:
+                x.attributes[i].v2 = a.attributes[i].v2 + t * (b.attributes[i].v2 - a.attributes[i].v2);
+            case AttributeType::VEC3:
+                x.attributes[i].v3 = a.attributes[i].v3 + t * (b.attributes[i].v3 - a.attributes[i].v3);
+            case AttributeType::VEC4:
+                x.attributes[i].v4 = a.attributes[i].v4 + t * (b.attributes[i].v4 - a.attributes[i].v4);
+            default: break;
+        }*/
+    return x;
+}
+
+/**
+ * @brief This method represents Vertex Processor
+ * @param nofVertices number of vertices to process
+ * @param outVertices array of OutVertices
+ * @param program active program with shaders etc.
+ */
+void GPU::vertexProcessor(uint32_t nofVertices, OutVertex * outVertices, Program * program) {
+    Vertex_puller_settings * vertexPullerSettings = (Vertex_puller_settings *) * std::find(vertexPullerList.begin(), vertexPullerList.end(), (VertexPullerID) activeVertexPuller);
+    BufferID * vertexPullerBuffer = (BufferID *) *std::find(bufferList.begin(), bufferList.end(), vertexPullerSettings->indexing.buffer_id);
+    InVertex inVertex;
+    OutVertex outVertex;
+    int index = 0;
+    for (int i = 0; i < nofVertices; i++) {
+        if (vertexPullerSettings->indexing.enabled) {
+            if (vertexPullerSettings->indexing.index_type == IndexType::UINT8)
+                getBufferData((BufferID) vertexPullerBuffer, i * sizeof(uint8_t), sizeof(uint8_t), &index);
+            else if (vertexPullerSettings->indexing.index_type == IndexType::UINT16)
+                getBufferData((BufferID) vertexPullerBuffer, i * sizeof(uint16_t), sizeof(uint16_t), &index);
+            else if (vertexPullerSettings->indexing.index_type == IndexType::UINT32)
+                getBufferData((BufferID) vertexPullerBuffer, i * sizeof(uint32_t), sizeof(uint32_t), &index);
+        }
+        else
+            index = i;
+
+        int k = 0;
+        for (auto & attribute : inVertex.attributes) {
+            auto head = vertexPullerSettings->heads[k++];
+            if (head.enabled) {
+                BufferID *headBuffer = (BufferID *) *std::find(bufferList.begin(), bufferList.end(), head.buffer_id);
+
+                switch (head.attrib_type) {
+                    case AttributeType::FLOAT:
+                        attribute.v1 = *((float *) ((size_t) headBuffer + head.offset +
+                                                                 head.stride * index));
+                        break;
+                    case AttributeType::VEC2:
+                        attribute.v2 = *((glm::vec2 *) ((size_t) headBuffer + head.offset +
+                                                                     head.stride * index));
+                        break;
+                    case AttributeType::VEC3:
+                        attribute.v3 = *((glm::vec3 *) ((size_t) headBuffer + head.offset +
+                                                                     head.stride * index));
+                        break;
+                    case AttributeType::VEC4:
+                        attribute.v4 = *((glm::vec4 *) ((size_t) headBuffer + head.offset +
+                                                                     head.stride * index));
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        inVertex.gl_VertexID = index;
+        program->vertexShader(outVertex, inVertex, program->uniforms);
+        outVertices[i] = outVertex;
+    }
 }
 
 /// @}
 FrameBuffer::FrameBuffer(uint32_t width, uint32_t height) {
     this->height = height;
     this->width = width;
-    this->colorBuffer = new  colorPixel [width * height];
+    this->colorBuffer = new  uint8_t[width * height * 4];
     this->depthBuffer = new float[width * height];
 }
+/**
+ * @brief Normalize number by normalizator
+ * @param num number to be normalized
+ * @param normalizator
+ * @param trunc if true, apply truncation to float number to cut it to <0.0, 1.0> interval, default false
+ * @return float number from <0.0, 1.0> interval
+ */
+float normalize_color(uint8_t num, uint8_t normalizator, bool trunc = false) {
+    if (normalizator == 0)
+        throw std::overflow_error("Division by zero leads to infinity.");
+    if (trunc)
+        return fit_color((float) num / (float) normalizator);
+    return (float)num / (float)normalizator;
+}
+/**
+ * @brief Denormalize float to uint8_t by normalizer, e.g. num:0.5, normalize:256 => return:128
+ * @param num number to denormalization
+ * @param normalizer
+ * @param trunc if true, apply truncation to float number to cut it to <0.0, 1.0> interval, default false
+ * @return denormalized uint8_t
+ */
+uint8_t denormalize_color(float num, uint8_t normalizer, bool trunc = false) {
+    if (trunc)
+        return (uint8_t)(fit_color(num) * (float)normalizer);
+    return (uint8_t)(num * (float)normalizer);
+}
+/**
+ * @brief Round float number to fit in <0.0, 1.0> interval
+ * @param num number to round
+ * @return rounded float number
+ */
+float fit_color(float num) {
+    if (num < 0.0)
+        return 0.0;
+    else if (num > 1.0)
+        return 1.0;
+    return num;
+}
+
