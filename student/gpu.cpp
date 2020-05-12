@@ -637,23 +637,24 @@ void GPU::drawTriangles(uint32_t  nofVertices){
   /// Vertex shader a fragment shader se zvolí podle aktivního shader programu (pomocí useProgram).<br>
   /// Parametr "nofVertices" obsahuje počet vrcholů, který by se měl vykreslit (3 pro jeden trojúhelník).<br>
     if (activeVertexPuller == nullptr or activeProgram == nullptr)
-        throw std::range_error("Vertex puller or Program is NULL, which cannot be.");
+        throw std::range_error("Vertex puller or Program is NULL, which it cannot be.");
     if (nofVertices < 3 or nofVertices % 3 != 0)
         throw std::range_error("Parameter nofVertices has invalid value.");
 
     auto * outVertices = new OutVertex[nofVertices];
+    auto * OutAbstractVertices = new OutAbstractVertex[nofVertices];
     std::vector<PrimitiveTriangle> primitiveTriangles;
     primitiveTriangles.reserve(nofVertices/3);
     Program * program = (Program *) * std::find(programList.begin(), programList.end(), (ProgramID) activeProgram);
 
     /*---VERTEX PROCESSOR---*/
-    vertexProcessor(nofVertices, outVertices, program);
+    vertexProcessor(nofVertices, OutAbstractVertices, program);
     /*---PRIMITIVE ASSEMBLY---*/
     for (int i = 0; i < nofVertices/3; i++)
-        primitiveTriangles.push_back(PrimitiveTriangle{outVertices[i * 3], outVertices[i * 3 + 1], outVertices[i * 3 + 2]});
+        primitiveTriangles.push_back(PrimitiveTriangle{OutAbstractVertices[i * 3], OutAbstractVertices[i * 3 + 1], outVertices[i * 3 + 2]});
     /*---CLIPPING---*/
 
-    OutVertex a, b, c, n;
+    OutAbstractVertex a, b, c, n;
     bool aIsOut, bIsOut, cIsOut;
     int x = 0, y = 1, z = 2, w = 3;
     std::vector<PrimitiveTriangle> newTriangles ;
@@ -662,9 +663,9 @@ void GPU::drawTriangles(uint32_t  nofVertices){
         a = primitiveTriangle.ov1;
         b = primitiveTriangle.ov2;
         c = primitiveTriangle.ov3;
-        aIsOut = -a.gl_Position[w] > a.gl_Position[z];
-        bIsOut = -b.gl_Position[w] > b.gl_Position[z];
-        cIsOut = -c.gl_Position[w] > c.gl_Position[z];
+        aIsOut = -a.ov.gl_Position[w] > a.ov.gl_Position[z];
+        bIsOut = -b.ov.gl_Position[w] > b.ov.gl_Position[z];
+        cIsOut = -c.ov.gl_Position[w] > c.ov.gl_Position[z];
 
         if (aIsOut && bIsOut && cIsOut)
             ;
@@ -673,7 +674,7 @@ void GPU::drawTriangles(uint32_t  nofVertices){
             continue;
         }
         // 1 new triangle
-        /*else if (aIsOut && bIsOut){
+       /* else if (aIsOut && bIsOut){
             n = getClippedPoint(c, a); //override point A
             primitiveTriangle.ov1 = n;
             n = getClippedPoint(c, b); //override point B
@@ -683,47 +684,27 @@ void GPU::drawTriangles(uint32_t  nofVertices){
     }
 }
 
-OutVertex GPU::getClippedPoint(OutVertex a, OutVertex b){
-    float numerator = (-a.gl_Position[3] - a.gl_Position[2]);
-    float denominator = (b.gl_Position[3] - a.gl_Position[3] + b.gl_Position[2] - a.gl_Position[2]);
+OutAbstractVertex GPU::getClippedPoint(OutAbstractVertex a, OutAbstractVertex b){
+    float numerator = (-a.ov.gl_Position[3] - a.ov.gl_Position[2]);
+    float denominator = (b.ov.gl_Position[3] - a.ov.gl_Position[3] + b.ov.gl_Position[2] - a.ov.gl_Position[2]);
     float t =  numerator/denominator;
-    OutVertex x;
+    OutAbstractVertex x;
+    x.ov.gl_Position = a.ov.gl_Position + t * (b.ov.gl_Position - a.ov.gl_Position);
 
-
-    x.gl_Position = a.gl_Position + t * (b.gl_Position - a.gl_Position);
-    float *f;
-    glm::vec2 *vec2; ///< vector of two floats
-    glm::vec3 *vec3; ///< vector of three floats
-    glm::vec4 * vec4; ///< vector of four floats
-    glm::vec4 * vectt; ///< vector of four floats
-    Attribute * tt;
-    float ttt[5];
-    //tt = ttt;
-    if (typeid(vec4) == typeid(vectt))
-        printf("AHoj\n");
-
-    for (int i = 0; i < maxAttributes; i++){
-        if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(f)>::type))
-            printf("FLOAT\n");
-        else if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(vec2)>::type))
-            printf("VEC2\n");
-        else if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(vec3)>::type))
-            printf("VEC3\n");
-        else if (typeid(std::remove_reference<decltype(a.attributes)>::type) == typeid(std::remove_reference<decltype(vec4)>::type))
-            printf("VEC4\n");
-        exit(55);
-    }
-    /*    switch (){
-            case :
-                x.attributes[i].v1 = a.attributes[i].v1 + t * (b.attributes[i].v1 - a.attributes[i].v1);
+    for (int i = 0; i < maxAttributes; i++) {
+        switch (a.attributeType[i]) {
+            case AttributeType::FLOAT:
+                x.ov.attributes[i].v1 = a.ov.attributes[i].v1 + t * (b.ov.attributes[i].v1 - a.ov.attributes[i].v1);
             case AttributeType::VEC2:
-                x.attributes[i].v2 = a.attributes[i].v2 + t * (b.attributes[i].v2 - a.attributes[i].v2);
+                x.ov.attributes[i].v2 = a.ov.attributes[i].v2 + t * (b.ov.attributes[i].v2 - a.ov.attributes[i].v2);
             case AttributeType::VEC3:
-                x.attributes[i].v3 = a.attributes[i].v3 + t * (b.attributes[i].v3 - a.attributes[i].v3);
+                x.ov.attributes[i].v3 = a.ov.attributes[i].v3 + t * (b.ov.attributes[i].v3 - a.ov.attributes[i].v3);
             case AttributeType::VEC4:
-                x.attributes[i].v4 = a.attributes[i].v4 + t * (b.attributes[i].v4 - a.attributes[i].v4);
-            default: break;
-        }*/
+                x.ov.attributes[i].v4 = a.ov.attributes[i].v4 + t * (b.ov.attributes[i].v4 - a.ov.attributes[i].v4);
+            default:
+                break;
+        }
+    }
     return x;
 }
 
@@ -733,11 +714,12 @@ OutVertex GPU::getClippedPoint(OutVertex a, OutVertex b){
  * @param outVertices array of OutVertices
  * @param program active program with shaders etc.
  */
-void GPU::vertexProcessor(uint32_t nofVertices, OutVertex * outVertices, Program * program) {
+void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractVertices, Program * program) {
     Vertex_puller_settings * vertexPullerSettings = (Vertex_puller_settings *) * std::find(vertexPullerList.begin(), vertexPullerList.end(), (VertexPullerID) activeVertexPuller);
     BufferID * vertexPullerBuffer = (BufferID *) *std::find(bufferList.begin(), bufferList.end(), vertexPullerSettings->indexing.buffer_id);
     InVertex inVertex;
     OutVertex outVertex;
+    OutAbstractVertex outAbstractVertex;
     int index = 0;
     for (int i = 0; i < nofVertices; i++) {
         if (vertexPullerSettings->indexing.enabled) {
@@ -753,10 +735,10 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutVertex * outVertices, Program
 
         int k = 0;
         for (auto & attribute : inVertex.attributes) {
-            auto head = vertexPullerSettings->heads[k++];
+            auto head = vertexPullerSettings->heads[k];
             if (head.enabled) {
                 BufferID *headBuffer = (BufferID *) *std::find(bufferList.begin(), bufferList.end(), head.buffer_id);
-
+                outAbstractVertex.attributeType[k] = head.attrib_type;
                 switch (head.attrib_type) {
                     case AttributeType::FLOAT:
                         attribute.v1 = *((float *) ((size_t) headBuffer + head.offset +
@@ -778,10 +760,12 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutVertex * outVertices, Program
                         break;
                 }
             }
+            k++;
         }
         inVertex.gl_VertexID = index;
+        outAbstractVertex.ov = outVertex;
         program->vertexShader(outVertex, inVertex, program->uniforms);
-        outVertices[i] = outVertex;
+        outAbstractVertices[i] = outAbstractVertex;
     }
 }
 

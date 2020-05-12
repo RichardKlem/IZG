@@ -9,7 +9,6 @@
 #include <student/fwd.hpp>
 #include "list"
 
-
 class FrameBuffer{
     public:
         uint8_t * colorBuffer = nullptr;
@@ -24,6 +23,15 @@ public:
     FragmentShader fragmentShader{};
     Uniforms uniforms;
     AttributeType attributeType = AttributeType::EMPTY;
+};
+/**
+ * This struct is necessary because the program needs to know AttributeType
+ * of OutVertex attributes and union does not contain information about what
+ * type of data is stored at the moment.
+ */
+struct OutAbstractVertex {
+    OutVertex ov;
+    AttributeType attributeType[maxAttributes]{};
 };
 
 /**
@@ -89,11 +97,11 @@ class GPU{
     ProgramID * activeProgram;
     FrameBuffer * frameBuffer;
 
-    void vertexProcessor(uint32_t nofVertices, OutVertex *outVertices, Program * program);
+    void vertexProcessor(uint32_t nofVertices, OutAbstractVertex *outAbstractVertices, Program * program);
 
-    OutVertex getClippedPoint(OutVertex a, OutVertex b);
+    OutAbstractVertex getClippedPoint(OutAbstractVertex a, OutAbstractVertex b);
 };
-struct Head{
+struct Head {
     BufferID buffer_id;
     uint32_t  offset;
     uint32_t  stride;
@@ -101,24 +109,25 @@ struct Head{
     bool enabled;
 };
 
-struct Indexing{
+struct Indexing {
     bool enabled;
     BufferID buffer_id;
     IndexType index_type;
 };
 
-class Vertex_puller_settings{
+class Vertex_puller_settings {
     public:
         Vertex_puller_settings();
         virtual ~Vertex_puller_settings();
         Head heads[maxAttributes];
         Indexing indexing;
 };
-struct PrimitiveTriangle{
-    OutVertex ov1;
-    OutVertex ov2;
-    OutVertex ov3;
+struct PrimitiveTriangle {
+    OutAbstractVertex ov1;
+    OutAbstractVertex ov2;
+    OutAbstractVertex ov3;
 };
+
 
 
 float normalize_color(uint8_t num, uint8_t normalizator, bool trunc);
