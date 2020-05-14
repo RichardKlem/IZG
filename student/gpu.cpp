@@ -5,6 +5,7 @@
  * @author Tomáš Milet, imilet@fit.vutbr.cz
  */
 
+#include <cmath>
 #include <student/gpu.hpp>
 #include <list>
 #include <iostream>
@@ -50,7 +51,7 @@ GPU::~GPU(){
  *
  * @return unique identificator of the buffer
  */
-BufferID GPU::createBuffer(uint64_t size) { 
+BufferID GPU::createBuffer(uint64_t size) {
   /// \todo Tato funkce by měla na grafické kartě vytvořit buffer dat.<br>
   /// Velikost bufferu je v parameteru size (v bajtech).<br>
   /// Funkce by měla vrátit unikátní identifikátor identifikátor bufferu.<br>
@@ -109,9 +110,9 @@ void GPU::setBufferData(BufferID buffer, uint64_t offset, uint64_t size, void co
  * @brief This function downloads data from GPU.
  *
  * @param buffer specfies buffer
- * @param offset specifies the offset into the buffer from which data will be returned, measured in bytes. 
+ * @param offset specifies the offset into the buffer from which data will be returned, measured in bytes.
  * @param size specifies data size that will be copied
- * @param data specifies a pointer to the location where buffer data is returned. 
+ * @param data specifies a pointer to the location where buffer data is returned.
  */
 void GPU::getBufferData(BufferID buffer,
                         uint64_t offset,
@@ -135,7 +136,7 @@ void GPU::getBufferData(BufferID buffer,
  *
  * @return true if buffer points to existing buffer on the GPU.
  */
-bool GPU::isBuffer(BufferID buffer) { 
+bool GPU::isBuffer(BufferID buffer) {
   /// \todo Tato funkce by měla vrátit true pokud buffer je identifikátor existující bufferu.<br>
   /// Tato funkce by měla vrátit false, pokud buffer není identifikátor existujícího bufferu. (nebo bufferu, který byl smazán).<br>
   /// Pro emptyId vrací false.<br>
@@ -248,7 +249,7 @@ void     GPU::setVertexPullerIndexing(VertexPullerID vao,IndexType type,BufferID
 /**
  * @brief This function enables vertex puller's head.
  *
- * @param vao vertex puller 
+ * @param vao vertex puller
  * @param head head id
  */
 void     GPU::enableVertexPullerHead (VertexPullerID vao,uint32_t head){
@@ -376,7 +377,7 @@ void             GPU::deleteProgram         (ProgramID prg){
  * @brief This function attaches vertex and frament shader to shader program.
  *
  * @param prg shader program
- * @param vs vertex shader 
+ * @param vs vertex shader
  * @param fs fragment shader
  */
 void             GPU::attachShaders         (ProgramID prg,VertexShader vs,FragmentShader fs){
@@ -732,16 +733,46 @@ void GPU::drawTriangles(uint32_t  nofVertices){
     /*---RASTERIZATION---*/
     //inspiration from https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation
 
+    std::vector<InFragment> inFragments;
+    OutFragment outFragment{};
+    for (auto & primTri: newTriangles) {
+        OutAbstractVertex vertexA = primTri.ov1;
+        OutAbstractVertex vertexB = primTri.ov2;
+        OutAbstractVertex vertexC = primTri.ov3;
+        std::vector<float> xs= {vertexA.ov.gl_Position[x], vertexB.ov.gl_Position[x], vertexC.ov.gl_Position[x],};
+        std::vector<float> ys = {vertexA.ov.gl_Position[y], vertexB.ov.gl_Position[y], vertexC.ov.gl_Position[y],};
+        int xmin = std::floor(*std::min_element(xs.begin(), xs.end()));
+        int xmax = std::ceil(*std::max_element(xs.begin(), xs.end()));
+        int ymin = std::floor(*std::min_element(ys.begin(), ys.end()));
+        int ymax = std::ceil(*std::max_element(ys.begin(), ys.end()));
 
-    for (auto & primitiveTriangle: newTriangles){
-        float xs[] = {a.ov.gl_Position[x], b.ov.gl_Position[x], c.ov.gl_Position[x], };
-        float ys[] = {a.ov.gl_Position[y], b.ov.gl_Position[y], c.ov.gl_Position[y], };
-        float xmin = *std::min_element(xs, xs + 2);
-        float xmax = *std::max_element(xs, xs + 2);
-        float ymin = *std::min_element(ys, ys + 2);
-        float ymax = *std::max_element(ys, ys + 2);
+        float area = triangleSurface(vertexA, vertexB, vertexC);
+        for (int x_bound = xmin; x_bound < xmax; x_bound++) {
+            for (int y_bound = ymin; y_bound < ymax; y_bound++) {
+                OutAbstractVertex pixelSample;
+                pixelSample.ov.gl_Position = glm::vec4{x_bound + 0.5, y_bound + 0.5, 0, 1};
+                float w0 = triangleSurface(vertexB, vertexC, pixelSample);
+                float w1 = triangleSurface(vertexC, vertexA, pixelSample);
+                float w2 = triangleSurface(vertexA, vertexB, pixelSample);
+                if (w0 + w1 + w2 == area) {
+                    //frameBuffer->depthBuffer[sizeof(float ) * y_bound * getFramebufferWidth() + x_bound] = depth;
+                    InFragment tmp;
+                    tmp.gl_FragCoord = pixelSample.ov.gl_Position;
+                    inFragments.push_back(tmp);
+                    /*
+                    if (depth < frameBuffer->depthBuffer[y_bound * getFramebufferWidth() + x_bound]) {
+                        frameBuffer->depthBuffer[y_bound * getFramebufferWidth() + x_bound] = depth;
+                        InFragment tmp;
+                        tmp.gl_FragCoord = pixelSample.ov.gl_Position;
+                        inFragments.push_back(tmp);
+                    }*/
+                }
+            }
+        }
     }
-
+    for (auto inFragment: inFragments){
+        program->fragmentShader(outFragment, inFragment, program->uniforms);
+    }
 }
 
 /**
@@ -799,8 +830,8 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
             k++;
         }
         inVertex.gl_VertexID = index;
-        outAbstractVertex.ov = outVertex;
         program->vertexShader(outVertex, inVertex, program->uniforms);
+        outAbstractVertex.ov = outVertex;
         outAbstractVertices[i] = outAbstractVertex;
     }
 }
@@ -873,4 +904,15 @@ OutAbstractVertex GPU::getClippedPoint(OutAbstractVertex a, OutAbstractVertex b)
         }
     }
     return x;
+}
+
+float GPU::triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c){
+    return std::abs((a.ov.gl_Position[0] * (b.ov.gl_Position[1] - c.ov.gl_Position[1]) +
+            b.ov.gl_Position[0] * (c.ov.gl_Position[1] - a.ov.gl_Position[1]) +
+            c.ov.gl_Position[0] * (a.ov.gl_Position[1] - b.ov.gl_Position[1]))/2);
+}
+
+bool GPU::edgeFunction(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c) {
+    return ((c.ov.gl_Position[0] - a.ov.gl_Position[0]) * (b.ov.gl_Position[1] - a.ov.gl_Position[1]) -
+    (c.ov.gl_Position[1] - a.ov.gl_Position[1]) * (b.ov.gl_Position[0] - a.ov.gl_Position[0])) >= 0;
 }

@@ -11,8 +11,8 @@
 
 class FrameBuffer{
     public:
-        uint8_t * colorBuffer = nullptr;
-        float * depthBuffer = nullptr;
+        uint8_t * colorBuffer;
+        float * depthBuffer;
         uint32_t width;
         uint32_t height;
         FrameBuffer(uint32_t width, uint32_t height);
@@ -98,8 +98,9 @@ class GPU{
     FrameBuffer * frameBuffer;
 
     void vertexProcessor(uint32_t nofVertices, OutAbstractVertex *outAbstractVertices, Program * program);
-
     OutAbstractVertex getClippedPoint(OutAbstractVertex a, OutAbstractVertex b);
+    float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
+    bool edgeFunction(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
 };
 struct Head {
     BufferID buffer_id;
