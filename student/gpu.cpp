@@ -651,10 +651,12 @@ void GPU::drawTriangles(uint32_t  nofVertices){
     vertexProcessor(nofVertices, OutAbstractVertices, program);
     /*---PRIMITIVE ASSEMBLY---*/
     for (int i = 0; i < nofVertices/3; i++)
-        primitiveTriangles.push_back(PrimitiveTriangle{OutAbstractVertices[i * 3], OutAbstractVertices[i * 3 + 1], outVertices[i * 3 + 2]});
-    /*---CLIPPING---*/
+        primitiveTriangles.push_back(PrimitiveTriangle{OutAbstractVertices[i * 3],
+                                                       OutAbstractVertices[i * 3 + 1],
+                                                       OutAbstractVertices[i * 3 + 2]});
 
-    OutAbstractVertex a, b, c, n;
+    /*---CLIPPING---*/
+    OutAbstractVertex a, b, c, n1, n2;
     bool aIsOut, bIsOut, cIsOut;
     int x = 0, y = 1, z = 2, w = 3;
     std::vector<PrimitiveTriangle> newTriangles ;
@@ -666,46 +668,80 @@ void GPU::drawTriangles(uint32_t  nofVertices){
         aIsOut = -a.ov.gl_Position[w] > a.ov.gl_Position[z];
         bIsOut = -b.ov.gl_Position[w] > b.ov.gl_Position[z];
         cIsOut = -c.ov.gl_Position[w] > c.ov.gl_Position[z];
-
-        if (aIsOut && bIsOut && cIsOut)
+        /*if (aIsOut and bIsOut and cIsOut)  //ABC
             ;
-        else if (!aIsOut && !bIsOut && !cIsOut){
+        else*/
+        if (not aIsOut and not bIsOut and not cIsOut)  //abc
             newTriangles.push_back(primitiveTriangle);
-            continue;
+        else if (aIsOut and not bIsOut and not cIsOut){  //Abc
+            n1 = getClippedPoint(a, b);
+            newTriangles.push_back(PrimitiveTriangle{b, c, n1});
+
+            n2 = getClippedPoint(c, a);
+            newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
         }
-        // 1 new triangle
-       /* else if (aIsOut && bIsOut){
-            n = getClippedPoint(c, a); //override point A
-            primitiveTriangle.ov1 = n;
-            n = getClippedPoint(c, b); //override point B
-            primitiveTriangle.ov2 = n;
-        }*/
+        else if (not aIsOut and bIsOut and not cIsOut){  //aBc
+            n1 = getClippedPoint(b, a);
+            newTriangles.push_back(PrimitiveTriangle{a, c, n1});
 
-    }
-}
-
-OutAbstractVertex GPU::getClippedPoint(OutAbstractVertex a, OutAbstractVertex b){
-    float numerator = (-a.ov.gl_Position[3] - a.ov.gl_Position[2]);
-    float denominator = (b.ov.gl_Position[3] - a.ov.gl_Position[3] + b.ov.gl_Position[2] - a.ov.gl_Position[2]);
-    float t =  numerator/denominator;
-    OutAbstractVertex x;
-    x.ov.gl_Position = a.ov.gl_Position + t * (b.ov.gl_Position - a.ov.gl_Position);
-
-    for (int i = 0; i < maxAttributes; i++) {
-        switch (a.attributeType[i]) {
-            case AttributeType::FLOAT:
-                x.ov.attributes[i].v1 = a.ov.attributes[i].v1 + t * (b.ov.attributes[i].v1 - a.ov.attributes[i].v1);
-            case AttributeType::VEC2:
-                x.ov.attributes[i].v2 = a.ov.attributes[i].v2 + t * (b.ov.attributes[i].v2 - a.ov.attributes[i].v2);
-            case AttributeType::VEC3:
-                x.ov.attributes[i].v3 = a.ov.attributes[i].v3 + t * (b.ov.attributes[i].v3 - a.ov.attributes[i].v3);
-            case AttributeType::VEC4:
-                x.ov.attributes[i].v4 = a.ov.attributes[i].v4 + t * (b.ov.attributes[i].v4 - a.ov.attributes[i].v4);
-            default:
-                break;
+            n2 = getClippedPoint(c, b);
+            newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
         }
+        else if (not aIsOut and not bIsOut and cIsOut){  //abC
+            n1 = getClippedPoint(c, a);
+            newTriangles.push_back(PrimitiveTriangle{a, b, n1});
+
+            n2 = getClippedPoint(b, c);
+            newTriangles.push_back(PrimitiveTriangle{b, n2, n1});
+        }
+        else if (aIsOut and bIsOut and not cIsOut) //ABc
+            newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), c});
+        else if (not aIsOut and bIsOut and cIsOut) //aBC
+            newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), a});
+        else if (aIsOut and not bIsOut and cIsOut) //AbC
+            newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), b});
     }
-    return x;
+
+    /*---NDC---*/
+    for (auto & primitiveTriangle: newTriangles){
+        primitiveTriangle.ov1.ov.gl_Position[x] /= primitiveTriangle.ov1.ov.gl_Position[w];
+        primitiveTriangle.ov1.ov.gl_Position[y] /= primitiveTriangle.ov1.ov.gl_Position[w];
+        primitiveTriangle.ov1.ov.gl_Position[z] /= primitiveTriangle.ov1.ov.gl_Position[w];
+
+        primitiveTriangle.ov2.ov.gl_Position[x] /= primitiveTriangle.ov2.ov.gl_Position[w];
+        primitiveTriangle.ov2.ov.gl_Position[y] /= primitiveTriangle.ov2.ov.gl_Position[w];
+        primitiveTriangle.ov2.ov.gl_Position[z] /= primitiveTriangle.ov2.ov.gl_Position[w];
+
+        primitiveTriangle.ov3.ov.gl_Position[x] /= primitiveTriangle.ov3.ov.gl_Position[w];
+        primitiveTriangle.ov3.ov.gl_Position[y] /= primitiveTriangle.ov3.ov.gl_Position[w];
+        primitiveTriangle.ov3.ov.gl_Position[z] /= primitiveTriangle.ov3.ov.gl_Position[w];
+    }
+
+    /*---VIEWPORT TRANSFORMATION---*/
+    for (auto & primitiveTriangle: newTriangles){
+        primitiveTriangle.ov1.ov.gl_Position[x] = ((primitiveTriangle.ov1.ov.gl_Position[x] + 1.0) / 2.0) * frameBuffer->width;
+        primitiveTriangle.ov1.ov.gl_Position[y] = ((primitiveTriangle.ov1.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
+
+        primitiveTriangle.ov2.ov.gl_Position[x] = ((primitiveTriangle.ov2.ov.gl_Position[x] + 1.0) / 2.0) * frameBuffer->width;
+        primitiveTriangle.ov2.ov.gl_Position[y] = ((primitiveTriangle.ov2.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
+
+        primitiveTriangle.ov3.ov.gl_Position[x] = ((primitiveTriangle.ov3.ov.gl_Position[x] + 1.0) / 2.0) * frameBuffer->width;
+        primitiveTriangle.ov3.ov.gl_Position[y] = ((primitiveTriangle.ov3.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
+    }
+
+    /*---RASTERIZATION---*/
+    //inspiration from https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation
+
+
+    for (auto & primitiveTriangle: newTriangles){
+        float xs[] = {a.ov.gl_Position[x], b.ov.gl_Position[x], c.ov.gl_Position[x], };
+        float ys[] = {a.ov.gl_Position[y], b.ov.gl_Position[y], c.ov.gl_Position[y], };
+        float xmin = *std::min_element(xs, xs + 2);
+        float xmax = *std::max_element(xs, xs + 2);
+        float ymin = *std::min_element(ys, ys + 2);
+        float ymax = *std::max_element(ys, ys + 2);
+    }
+
 }
 
 /**
@@ -815,3 +851,26 @@ float fit_color(float num) {
     return num;
 }
 
+OutAbstractVertex GPU::getClippedPoint(OutAbstractVertex a, OutAbstractVertex b){
+    float numerator = (-a.ov.gl_Position[3] - a.ov.gl_Position[2]);
+    float denominator = (b.ov.gl_Position[3] - a.ov.gl_Position[3] + b.ov.gl_Position[2] - a.ov.gl_Position[2]);
+    float t =  numerator/denominator;
+    OutAbstractVertex x;
+    x.ov.gl_Position = a.ov.gl_Position + t * (b.ov.gl_Position - a.ov.gl_Position);
+
+    for (int i = 0; i < maxAttributes; i++) {
+        switch (a.attributeType[i]) {
+            case AttributeType::FLOAT:
+                x.ov.attributes[i].v1 = a.ov.attributes[i].v1 + t * (b.ov.attributes[i].v1 - a.ov.attributes[i].v1);
+            case AttributeType::VEC2:
+                x.ov.attributes[i].v2 = a.ov.attributes[i].v2 + t * (b.ov.attributes[i].v2 - a.ov.attributes[i].v2);
+            case AttributeType::VEC3:
+                x.ov.attributes[i].v3 = a.ov.attributes[i].v3 + t * (b.ov.attributes[i].v3 - a.ov.attributes[i].v3);
+            case AttributeType::VEC4:
+                x.ov.attributes[i].v4 = a.ov.attributes[i].v4 + t * (b.ov.attributes[i].v4 - a.ov.attributes[i].v4);
+            default:
+                break;
+        }
+    }
+    return x;
+}
