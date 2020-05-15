@@ -22,7 +22,7 @@ public:
     VertexShader vertexShader{};
     FragmentShader fragmentShader{};
     Uniforms uniforms;
-    AttributeType attributeType = AttributeType::EMPTY;
+    AttributeType attributeType[maxAttributes] = {AttributeType::EMPTY};
 };
 /**
  * This struct is necessary because the program needs to know AttributeType
@@ -98,8 +98,8 @@ class GPU{
     FrameBuffer * frameBuffer;
 
     void vertexProcessor(uint32_t nofVertices, OutAbstractVertex *outAbstractVertices, Program * program);
-    OutAbstractVertex getClippedPoint(OutAbstractVertex a, OutAbstractVertex b);
-    float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
+    static OutAbstractVertex getClippedPoint(OutAbstractVertex a, OutAbstractVertex b);
+    static float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
     bool edgeFunction(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
 };
 struct Head {

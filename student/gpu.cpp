@@ -754,24 +754,69 @@ void GPU::drawTriangles(uint32_t  nofVertices){
                 float w0 = triangleSurface(vertexB, vertexC, pixelSample);
                 float w1 = triangleSurface(vertexC, vertexA, pixelSample);
                 float w2 = triangleSurface(vertexA, vertexB, pixelSample);
-                if (w0 + w1 + w2 == area) {
+                bool isInTriangle = false;
+                if (w0 + w1 + w2 < area and w0 + w1 + w2 > area * 0.99999) isInTriangle = true;
+                else if (w0 + w1 + w2 > area and w0 + w1 + w2 < area * 1.00001) isInTriangle = true;
+                else if (w0 + w1 + w2 == area) isInTriangle = true;
+                if (isInTriangle) {
                     //frameBuffer->depthBuffer[sizeof(float ) * y_bound * getFramebufferWidth() + x_bound] = depth;
                     InFragment tmp;
                     tmp.gl_FragCoord = pixelSample.ov.gl_Position;
+                    float l0 = w0 / area;
+                    float l1 = w1 / area;
+                    float l2 = w2 / area;
+                    float numerator = vertexA.ov.gl_Position[z] * l0 / vertexA.ov.gl_Position[w] +
+                                      vertexB.ov.gl_Position[z] * l0 / vertexB.ov.gl_Position[w] +
+                                      vertexC.ov.gl_Position[z] * l0 / vertexC.ov.gl_Position[w];
+                    float denominator = l0 / vertexA.ov.gl_Position[w] +
+                                        l1 / vertexB.ov.gl_Position[w] +
+                                        l2 / vertexC.ov.gl_Position[w];
+                    tmp.gl_FragCoord[z] = numerator / denominator;
+
+                    numerator = vertexA.ov.gl_Position[w] * l0 / vertexA.ov.gl_Position[w] +
+                                      vertexB.ov.gl_Position[w] * l0 / vertexB.ov.gl_Position[w] +
+                                      vertexC.ov.gl_Position[w] * l0 / vertexC.ov.gl_Position[w];
+                    tmp.gl_FragCoord[w] = numerator / denominator;
+
+                    for (int i = 0; i < maxAttributes; i++){
+                        switch (program->attributeType[i]){
+                            case AttributeType::FLOAT:
+                                tmp.attributes[i].v1 = (vertexA.ov.attributes[i].v1 * l0 / vertexA.ov.gl_Position[w] +
+                                                        vertexB.ov.attributes[i].v1 * l1 / vertexB.ov.gl_Position[w] +
+                                                        vertexC.ov.attributes[i].v1 * l2 / vertexC.ov.gl_Position[w])
+                                                       / denominator;
+                            case AttributeType::VEC2:
+                                tmp.attributes[i].v2 = (vertexA.ov.attributes[i].v2 * l0 / vertexA.ov.gl_Position[w] +
+                                                        vertexB.ov.attributes[i].v2 * l1 / vertexB.ov.gl_Position[w] +
+                                                        vertexC.ov.attributes[i].v2 * l2 / vertexC.ov.gl_Position[w])
+                                                       / denominator;
+                            case AttributeType::VEC3:
+                                tmp.attributes[i].v3 = (vertexA.ov.attributes[i].v3 * l0 / vertexA.ov.gl_Position[w] +
+                                                        vertexB.ov.attributes[i].v3 * l1 / vertexB.ov.gl_Position[w] +
+                                                        vertexC.ov.attributes[i].v3 * l2 / vertexC.ov.gl_Position[w])
+                                                       / denominator;
+                            case AttributeType::VEC4:
+                                tmp.attributes[i].v4 = (vertexA.ov.attributes[i].v4 * l0 / vertexA.ov.gl_Position[w] +
+                                                        vertexB.ov.attributes[i].v4 * l1 / vertexB.ov.gl_Position[w] +
+                                                        vertexC.ov.attributes[i].v4 * l2 / vertexC.ov.gl_Position[w])
+                                                       / denominator;
+                            default:
+                                break;
+                        }
+                    }
                     inFragments.push_back(tmp);
-                    /*
-                    if (depth < frameBuffer->depthBuffer[y_bound * getFramebufferWidth() + x_bound]) {
-                        frameBuffer->depthBuffer[y_bound * getFramebufferWidth() + x_bound] = depth;
-                        InFragment tmp;
-                        tmp.gl_FragCoord = pixelSample.ov.gl_Position;
-                        inFragments.push_back(tmp);
-                    }*/
                 }
             }
         }
     }
     for (auto inFragment: inFragments){
         program->fragmentShader(outFragment, inFragment, program->uniforms);
+        if (frameBuffer->depthBuffer[(int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]] > inFragment.gl_FragCoord[z]){
+            frameBuffer->depthBuffer[(int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]] = inFragment.gl_FragCoord[z];
+            for (int i = 0; i < 4; i++)
+                frameBuffer->colorBuffer[((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x])*4 + i]
+                        = outFragment.gl_FragColor[i];
+        }
     }
 }
 
