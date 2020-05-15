@@ -403,6 +403,10 @@ void             GPU::setVS2FSType          (ProgramID prg, uint32_t attrib, Att
   /// Tyto atributy obsahují interpolované hodnoty vertex atributů.<br>
   /// Tato funkce vybere jakého typu jsou tyto interpolované atributy.<br>
   /// Bez jakéhokoliv nastavení jsou atributy prázdne AttributeType::EMPTY<br>
+    auto it = std::find(programList.begin(), programList.end(), prg);
+    if (it != programList.end()){
+        ((Program *) *it)->attributeType[attrib] = type;
+    }
 }
 
 /**
@@ -755,8 +759,8 @@ void GPU::drawTriangles(uint32_t  nofVertices){
                 float w1 = triangleSurface(vertexC, vertexA, pixelSample);
                 float w2 = triangleSurface(vertexA, vertexB, pixelSample);
                 bool isInTriangle = false;
-                if (w0 + w1 + w2 < area and w0 + w1 + w2 > area * 0.99999) isInTriangle = true;
-                else if (w0 + w1 + w2 > area and w0 + w1 + w2 < area * 1.00001) isInTriangle = true;
+                if (w0 + w1 + w2 < area and w0 + w1 + w2 > area * 0.999) isInTriangle = true;
+                else if (w0 + w1 + w2 > area and w0 + w1 + w2 < area * 1.001) isInTriangle = true;
                 else if (w0 + w1 + w2 == area) isInTriangle = true;
                 if (isInTriangle) {
                     //frameBuffer->depthBuffer[sizeof(float ) * y_bound * getFramebufferWidth() + x_bound] = depth;
@@ -766,19 +770,22 @@ void GPU::drawTriangles(uint32_t  nofVertices){
                     float l1 = w1 / area;
                     float l2 = w2 / area;
                     float numerator = vertexA.ov.gl_Position[z] * l0 / vertexA.ov.gl_Position[w] +
-                                      vertexB.ov.gl_Position[z] * l0 / vertexB.ov.gl_Position[w] +
-                                      vertexC.ov.gl_Position[z] * l0 / vertexC.ov.gl_Position[w];
+                                      vertexB.ov.gl_Position[z] * l1 / vertexB.ov.gl_Position[w] +
+                                      vertexC.ov.gl_Position[z] * l2 / vertexC.ov.gl_Position[w];
                     float denominator = l0 / vertexA.ov.gl_Position[w] +
                                         l1 / vertexB.ov.gl_Position[w] +
                                         l2 / vertexC.ov.gl_Position[w];
                     tmp.gl_FragCoord[z] = numerator / denominator;
 
                     numerator = vertexA.ov.gl_Position[w] * l0 / vertexA.ov.gl_Position[w] +
-                                      vertexB.ov.gl_Position[w] * l0 / vertexB.ov.gl_Position[w] +
-                                      vertexC.ov.gl_Position[w] * l0 / vertexC.ov.gl_Position[w];
+                                      vertexB.ov.gl_Position[w] * l1 / vertexB.ov.gl_Position[w] +
+                                      vertexC.ov.gl_Position[w] * l2 / vertexC.ov.gl_Position[w];
                     tmp.gl_FragCoord[w] = numerator / denominator;
 
                     for (int i = 0; i < maxAttributes; i++){
+                        denominator = l0 / vertexA.ov.gl_Position[w] +
+                                      l1 / vertexB.ov.gl_Position[w] +
+                                      l2 / vertexC.ov.gl_Position[w];
                         switch (program->attributeType[i]){
                             case AttributeType::FLOAT:
                                 tmp.attributes[i].v1 = (vertexA.ov.attributes[i].v1 * l0 / vertexA.ov.gl_Position[w] +
@@ -811,11 +818,11 @@ void GPU::drawTriangles(uint32_t  nofVertices){
     }
     for (auto inFragment: inFragments){
         program->fragmentShader(outFragment, inFragment, program->uniforms);
-        if (frameBuffer->depthBuffer[(int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]] > inFragment.gl_FragCoord[z]){
-            frameBuffer->depthBuffer[(int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]] = inFragment.gl_FragCoord[z];
+        if (frameBuffer->depthBuffer[(int)(inFragment.gl_FragCoord[y] * frameBuffer->width + inFragment.gl_FragCoord[x])] > inFragment.gl_FragCoord[z]){
+            frameBuffer->depthBuffer[(int)(inFragment.gl_FragCoord[y] * frameBuffer->width + inFragment.gl_FragCoord[x])] = inFragment.gl_FragCoord[z];
             for (int i = 0; i < 4; i++)
-                frameBuffer->colorBuffer[((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x])*4 + i]
-                        = outFragment.gl_FragColor[i];
+                frameBuffer->colorBuffer[((int)(inFragment.gl_FragCoord[y] * frameBuffer->width + inFragment.gl_FragCoord[x]) * 4 + i)]
+                        = denormalize_color(outFragment.gl_FragColor[i], 255, true);
         }
     }
 }

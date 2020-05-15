@@ -22,7 +22,7 @@ public:
     VertexShader vertexShader{};
     FragmentShader fragmentShader{};
     Uniforms uniforms;
-    AttributeType attributeType[maxAttributes] = {AttributeType::EMPTY};
+    AttributeType attributeType[maxAttributes]{};
 };
 /**
  * This struct is necessary because the program needs to know AttributeType
