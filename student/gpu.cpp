@@ -16,6 +16,8 @@
 #include <vector>
 #include <typeinfo>
 
+#include <tests/catch.hpp>
+
 Vertex_puller_settings::Vertex_puller_settings(){}
 Vertex_puller_settings::~Vertex_puller_settings(){}
 
@@ -186,7 +188,7 @@ void     GPU::deleteVertexPuller     (VertexPullerID vao){
     if (it != vertexPullerList.end()){
         tmp = (ObjectID *) *it; //ulozim si hodnotu iteratoru, tedy ukazatel na VertexPulleru
         vertexPullerList.erase(it); //smazu zaznam o bufferu z listu
-        delete tmp; //dealokuji buffer
+        delete tmp; //dealokuji VP
     }
 }
 
@@ -617,10 +619,10 @@ void GPU::clear(float r,float g,float b,float a){
   /// (0,0,0) - černá barva, (1,1,1) - bílá barva.<br>
   /// Hloubkový buffer nastaví na takovou hodnotu, která umožní rasterizaci trojúhelníka, který leží v rámci pohledového tělesa.<br>
   /// Hloubka by měla být tedy větší než maximální hloubka v NDC (normalized device coordinates).<br>
-    r = (uint8_t )denormalize_color(r, (uint8_t) 256, true);
-    g = (uint8_t )denormalize_color(g, (uint8_t) 256, true);
-    b = (uint8_t )denormalize_color(b, (uint8_t) 256, true);
-    a = (uint8_t )denormalize_color(a, (uint8_t) 256, true);
+    r = (uint8_t )denormalize_color(r, (uint8_t) 255, true);
+    g = (uint8_t )denormalize_color(g, (uint8_t) 255, true);
+    b = (uint8_t )denormalize_color(b, (uint8_t) 255, true);
+    a = (uint8_t )denormalize_color(a, (uint8_t) 255, true);
 
     uint8_t * colorBuffer = getFramebufferColor();
     float * depthBuffer = getFramebufferDepth();
@@ -646,20 +648,20 @@ void GPU::drawTriangles(uint32_t  nofVertices){
     if (nofVertices < 3 or nofVertices % 3 != 0)
         throw std::range_error("Parameter nofVertices has invalid value.");
 
-    auto * outVertices = new OutVertex[nofVertices];
-    auto * OutAbstractVertices = new OutAbstractVertex[nofVertices];
+    auto * outAbstractVertices = new OutAbstractVertex[nofVertices];
     std::vector<PrimitiveTriangle> primitiveTriangles;
     primitiveTriangles.reserve(nofVertices/3);
     Program * program = (Program *) * std::find(programList.begin(), programList.end(), (ProgramID) activeProgram);
 
     /*---VERTEX PROCESSOR---*/
-    vertexProcessor(nofVertices, OutAbstractVertices, program);
+    vertexProcessor(nofVertices, outAbstractVertices, program);
+
     /*---PRIMITIVE ASSEMBLY---*/
     for (int i = 0; i < nofVertices/3; i++)
-        primitiveTriangles.push_back(PrimitiveTriangle{OutAbstractVertices[i * 3],
-                                                       OutAbstractVertices[i * 3 + 1],
-                                                       OutAbstractVertices[i * 3 + 2]});
-
+        primitiveTriangles.push_back(PrimitiveTriangle{outAbstractVertices[i * 3],
+                                                       outAbstractVertices[i * 3 + 1],
+                                                       outAbstractVertices[i * 3 + 2]});
+    delete[] outAbstractVertices;
     /*---CLIPPING---*/
     OutAbstractVertex a, b, c, n1, n2;
     bool aIsOut, bIsOut, cIsOut;
@@ -706,32 +708,43 @@ void GPU::drawTriangles(uint32_t  nofVertices){
         else if (aIsOut and not bIsOut and cIsOut) //AbC
             newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), b});
     }
+    primitiveTriangles.clear();
 
     /*---NDC---*/
     for (auto & primitiveTriangle: newTriangles){
-        primitiveTriangle.ov1.ov.gl_Position[x] /= primitiveTriangle.ov1.ov.gl_Position[w];
-        primitiveTriangle.ov1.ov.gl_Position[y] /= primitiveTriangle.ov1.ov.gl_Position[w];
-        primitiveTriangle.ov1.ov.gl_Position[z] /= primitiveTriangle.ov1.ov.gl_Position[w];
-
-        primitiveTriangle.ov2.ov.gl_Position[x] /= primitiveTriangle.ov2.ov.gl_Position[w];
-        primitiveTriangle.ov2.ov.gl_Position[y] /= primitiveTriangle.ov2.ov.gl_Position[w];
-        primitiveTriangle.ov2.ov.gl_Position[z] /= primitiveTriangle.ov2.ov.gl_Position[w];
-
-        primitiveTriangle.ov3.ov.gl_Position[x] /= primitiveTriangle.ov3.ov.gl_Position[w];
-        primitiveTriangle.ov3.ov.gl_Position[y] /= primitiveTriangle.ov3.ov.gl_Position[w];
-        primitiveTriangle.ov3.ov.gl_Position[z] /= primitiveTriangle.ov3.ov.gl_Position[w];
+        if (primitiveTriangle.ov1.ov.gl_Position[w] != 0){
+            primitiveTriangle.ov1.ov.gl_Position[x] /= primitiveTriangle.ov1.ov.gl_Position[w];
+            primitiveTriangle.ov1.ov.gl_Position[y] /= primitiveTriangle.ov1.ov.gl_Position[w];
+            primitiveTriangle.ov1.ov.gl_Position[z] /= primitiveTriangle.ov1.ov.gl_Position[w];
+        }
+        if (primitiveTriangle.ov2.ov.gl_Position[w]){
+            primitiveTriangle.ov2.ov.gl_Position[x] /= primitiveTriangle.ov2.ov.gl_Position[w];
+            primitiveTriangle.ov2.ov.gl_Position[y] /= primitiveTriangle.ov2.ov.gl_Position[w];
+            primitiveTriangle.ov2.ov.gl_Position[z] /= primitiveTriangle.ov2.ov.gl_Position[w];
+        }
+        if (primitiveTriangle.ov3.ov.gl_Position[w]){
+            primitiveTriangle.ov3.ov.gl_Position[x] /= primitiveTriangle.ov3.ov.gl_Position[w];
+            primitiveTriangle.ov3.ov.gl_Position[y] /= primitiveTriangle.ov3.ov.gl_Position[w];
+            primitiveTriangle.ov3.ov.gl_Position[z] /= primitiveTriangle.ov3.ov.gl_Position[w];
+        }
     }
 
     /*---VIEWPORT TRANSFORMATION---*/
     for (auto & primitiveTriangle: newTriangles){
-        primitiveTriangle.ov1.ov.gl_Position[x] = ((primitiveTriangle.ov1.ov.gl_Position[x] + 1.0) / 2.0) * frameBuffer->width;
+        primitiveTriangle.ov1.ov.gl_Position[x] = ((primitiveTriangle.ov1.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
         primitiveTriangle.ov1.ov.gl_Position[y] = ((primitiveTriangle.ov1.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
 
-        primitiveTriangle.ov2.ov.gl_Position[x] = ((primitiveTriangle.ov2.ov.gl_Position[x] + 1.0) / 2.0) * frameBuffer->width;
+        primitiveTriangle.ov2.ov.gl_Position[x] = ((primitiveTriangle.ov2.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
         primitiveTriangle.ov2.ov.gl_Position[y] = ((primitiveTriangle.ov2.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
 
-        primitiveTriangle.ov3.ov.gl_Position[x] = ((primitiveTriangle.ov3.ov.gl_Position[x] + 1.0) / 2.0) * frameBuffer->width;
+        primitiveTriangle.ov3.ov.gl_Position[x] = ((primitiveTriangle.ov3.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
         primitiveTriangle.ov3.ov.gl_Position[y] = ((primitiveTriangle.ov3.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
+        /*REQUIRE(primitiveTriangle.ov1.ov.gl_Position[0] < 500);
+        REQUIRE(primitiveTriangle.ov1.ov.gl_Position[1] < 500);
+        REQUIRE (primitiveTriangle.ov2.ov.gl_Position[0] < 500);
+        REQUIRE(primitiveTriangle.ov2.ov.gl_Position[1] < 500);
+        REQUIRE (primitiveTriangle.ov3.ov.gl_Position[0] < 500);
+        REQUIRE(primitiveTriangle.ov3.ov.gl_Position[1] < 500);*/
     }
 
     /*---RASTERIZATION---*/
@@ -745,22 +758,35 @@ void GPU::drawTriangles(uint32_t  nofVertices){
         OutAbstractVertex vertexC = primTri.ov3;
         std::vector<float> xs= {vertexA.ov.gl_Position[x], vertexB.ov.gl_Position[x], vertexC.ov.gl_Position[x],};
         std::vector<float> ys = {vertexA.ov.gl_Position[y], vertexB.ov.gl_Position[y], vertexC.ov.gl_Position[y],};
+        //get boundaries
         int xmin = std::floor(*std::min_element(xs.begin(), xs.end()));
         int xmax = std::ceil(*std::max_element(xs.begin(), xs.end()));
         int ymin = std::floor(*std::min_element(ys.begin(), ys.end()));
         int ymax = std::ceil(*std::max_element(ys.begin(), ys.end()));
 
+        //clip out fragments out of clip space when user change the view
+        if (xmin < 0)
+            xmin = 0;
+        if (ymin < 0)
+            ymin = 0;
+        if (xmax >= getFramebufferWidth())
+            xmax = getFramebufferWidth();
+        if (ymax >= getFramebufferHeight())
+            ymax = getFramebufferHeight();
+
         float area = triangleSurface(vertexA, vertexB, vertexC);
-        for (int x_bound = xmin; x_bound < xmax; x_bound++) {
-            for (int y_bound = ymin; y_bound < ymax; y_bound++) {
+        for (int x_bound = xmin; x_bound < xmax; ++x_bound) {
+            for (int y_bound = ymin; y_bound < ymax; ++y_bound) {
                 OutAbstractVertex pixelSample;
                 pixelSample.ov.gl_Position = glm::vec4{x_bound + 0.5, y_bound + 0.5, 0, 1};
                 float w0 = triangleSurface(vertexB, vertexC, pixelSample);
                 float w1 = triangleSurface(vertexC, vertexA, pixelSample);
                 float w2 = triangleSurface(vertexA, vertexB, pixelSample);
                 bool isInTriangle = false;
-                if (w0 + w1 + w2 < area and w0 + w1 + w2 > area * 0.999) isInTriangle = true;
-                else if (w0 + w1 + w2 > area and w0 + w1 + w2 < area * 1.001) isInTriangle = true;
+                // 2^-10 = 0.000976562
+                float deviation = 0.000976562;
+                if (w0 + w1 + w2 < area and w0 + w1 + w2 > area * (1 - deviation)) isInTriangle = true;
+                else if (w0 + w1 + w2 > area and w0 + w1 + w2 < area * (1 + deviation)) isInTriangle = true;
                 else if (w0 + w1 + w2 == area) isInTriangle = true;
                 if (isInTriangle) {
                     //frameBuffer->depthBuffer[sizeof(float ) * y_bound * getFramebufferWidth() + x_bound] = depth;
@@ -816,21 +842,26 @@ void GPU::drawTriangles(uint32_t  nofVertices){
             }
         }
     }
+    newTriangles.clear();
     for (auto inFragment: inFragments){
         program->fragmentShader(outFragment, inFragment, program->uniforms);
-        if (frameBuffer->depthBuffer[(int)(inFragment.gl_FragCoord[y] * frameBuffer->width + inFragment.gl_FragCoord[x])] > inFragment.gl_FragCoord[z]){
-            frameBuffer->depthBuffer[(int)(inFragment.gl_FragCoord[y] * frameBuffer->width + inFragment.gl_FragCoord[x])] = inFragment.gl_FragCoord[z];
-            for (int i = 0; i < 4; i++)
-                frameBuffer->colorBuffer[((int)(inFragment.gl_FragCoord[y] * frameBuffer->width + inFragment.gl_FragCoord[x]) * 4 + i)]
-                        = denormalize_color(outFragment.gl_FragColor[i], 255, true);
+        auto actDepthPosition = ((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]);
+        auto actColorPositon = (((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]) * 4);
+        if (frameBuffer->depthBuffer[actDepthPosition] > inFragment.gl_FragCoord[z]){
+            frameBuffer->depthBuffer[actDepthPosition] = inFragment.gl_FragCoord[z];
+            frameBuffer->colorBuffer[actColorPositon] = denormalize_color(outFragment.gl_FragColor[0], 255, true);
+            frameBuffer->colorBuffer[actColorPositon + 1] = denormalize_color(outFragment.gl_FragColor[1], 255, true);
+            frameBuffer->colorBuffer[actColorPositon + 2] = denormalize_color(outFragment.gl_FragColor[2], 255, true);
+            frameBuffer->colorBuffer[actColorPositon + 3] = denormalize_color(outFragment.gl_FragColor[3], 255, true);
         }
     }
+    inFragments.clear();
 }
 
 /**
  * @brief This method represents Vertex Processor
  * @param nofVertices number of vertices to process
- * @param outVertices array of OutVertices
+ * @param outAbstractVertices array of OutAbstractVertex
  * @param program active program with shaders etc.
  */
 void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractVertices, Program * program) {
@@ -859,22 +890,29 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
                 BufferID *headBuffer = (BufferID *) *std::find(bufferList.begin(), bufferList.end(), head.buffer_id);
                 outAbstractVertex.attributeType[k] = head.attrib_type;
                 switch (head.attrib_type) {
-                    case AttributeType::FLOAT:
+                    case AttributeType::FLOAT:{
                         attribute.v1 = *((float *) ((size_t) headBuffer + head.offset +
                                                                  head.stride * index));
                         break;
-                    case AttributeType::VEC2:
+                    }
+                    case AttributeType::VEC2:{
                         attribute.v2 = *((glm::vec2 *) ((size_t) headBuffer + head.offset +
                                                                      head.stride * index));
                         break;
-                    case AttributeType::VEC3:
+                    }
+                    case AttributeType::VEC3:{
+                        auto aaa = attribute.v3;
+                        auto aaaa =  *((glm::vec3 *) ((size_t) headBuffer + head.offset +
+                                                      head.stride * index));
                         attribute.v3 = *((glm::vec3 *) ((size_t) headBuffer + head.offset +
                                                                      head.stride * index));
                         break;
-                    case AttributeType::VEC4:
+                    }
+                    case AttributeType::VEC4:{
                         attribute.v4 = *((glm::vec4 *) ((size_t) headBuffer + head.offset +
                                                                      head.stride * index));
                         break;
+                    }
                     default:
                         break;
                 }
@@ -895,19 +933,9 @@ FrameBuffer::FrameBuffer(uint32_t width, uint32_t height) {
     this->colorBuffer = new  uint8_t[width * height * 4];
     this->depthBuffer = new float[width * height];
 }
-/**
- * @brief Normalize number by normalizator
- * @param num number to be normalized
- * @param normalizator
- * @param trunc if true, apply truncation to float number to cut it to <0.0, 1.0> interval, default false
- * @return float number from <0.0, 1.0> interval
- */
-float normalize_color(uint8_t num, uint8_t normalizator, bool trunc = false) {
-    if (normalizator == 0)
-        throw std::overflow_error("Division by zero leads to infinity.");
-    if (trunc)
-        return fit_color((float) num / (float) normalizator);
-    return (float)num / (float)normalizator;
+FrameBuffer::~FrameBuffer(){
+    delete[] this->colorBuffer;
+    delete[] this->depthBuffer;
 }
 /**
  * @brief Denormalize float to uint8_t by normalizer, e.g. num:0.5, normalize:256 => return:128

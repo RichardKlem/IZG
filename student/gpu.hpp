@@ -16,6 +16,7 @@ class FrameBuffer{
         uint32_t width;
         uint32_t height;
         FrameBuffer(uint32_t width, uint32_t height);
+        ~FrameBuffer();
 };
 class Program{
 public:
