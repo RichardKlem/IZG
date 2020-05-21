@@ -639,29 +639,29 @@ void GPU::clear(float r,float g,float b,float a){
 
 
 void GPU::drawTriangles(uint32_t  nofVertices){
-  /// \todo Tato funkce vykreslí trojúhelníky podle daného nastavení.<br>
   /// Vrcholy se budou vybírat podle nastavení z aktivního vertex pulleru (pomocí bindVertexPuller).<br>
   /// Vertex shader a fragment shader se zvolí podle aktivního shader programu (pomocí useProgram).<br>
   /// Parametr "nofVertices" obsahuje počet vrcholů, který by se měl vykreslit (3 pro jeden trojúhelník).<br>
-    if (activeVertexPuller == nullptr or activeProgram == nullptr)
+    if (this->activeVertexPuller == nullptr or this->activeProgram == nullptr)
         throw std::range_error("Vertex puller or Program is NULL, which it cannot be.");
     if (nofVertices < 3 or nofVertices % 3 != 0)
         throw std::range_error("Parameter nofVertices has invalid value.");
 
     auto * outAbstractVertices = new OutAbstractVertex[nofVertices];
     std::vector<PrimitiveTriangle> primitiveTriangles;
-    primitiveTriangles.reserve(nofVertices/3);
+    primitiveTriangles.reserve(nofVertices / 3);
     Program * program = (Program *) * std::find(programList.begin(), programList.end(), (ProgramID) activeProgram);
 
     /*---VERTEX PROCESSOR---*/
     vertexProcessor(nofVertices, outAbstractVertices, program);
 
     /*---PRIMITIVE ASSEMBLY---*/
-    for (int i = 0; i < nofVertices/3; i++)
+    for (int i = 0; i < nofVertices / 3; i++)
         primitiveTriangles.push_back(PrimitiveTriangle{outAbstractVertices[i * 3],
                                                        outAbstractVertices[i * 3 + 1],
                                                        outAbstractVertices[i * 3 + 2]});
     delete[] outAbstractVertices;
+
     /*---CLIPPING---*/
     OutAbstractVertex a, b, c, n1, n2;
     bool aIsOut, bIsOut, cIsOut;
@@ -675,40 +675,38 @@ void GPU::drawTriangles(uint32_t  nofVertices){
         aIsOut = -a.ov.gl_Position[w] > a.ov.gl_Position[z];
         bIsOut = -b.ov.gl_Position[w] > b.ov.gl_Position[z];
         cIsOut = -c.ov.gl_Position[w] > c.ov.gl_Position[z];
-        /*if (aIsOut and bIsOut and cIsOut)  //ABC
-            ;
-        else*/
+
         if (not aIsOut and not bIsOut and not cIsOut)  //abc
             newTriangles.push_back(primitiveTriangle);
         else if (aIsOut and not bIsOut and not cIsOut){  //Abc
-            n1 = getClippedPoint(a, b);
+            n1 = getEdgePoint(a, b);
             newTriangles.push_back(PrimitiveTriangle{b, c, n1});
 
-            n2 = getClippedPoint(c, a);
+            n2 = getEdgePoint(c, a);
             newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
         }
         else if (not aIsOut and bIsOut and not cIsOut){  //aBc
-            n1 = getClippedPoint(b, a);
+            n1 = getEdgePoint(b, a);
             newTriangles.push_back(PrimitiveTriangle{a, c, n1});
 
-            n2 = getClippedPoint(c, b);
+            n2 = getEdgePoint(c, b);
             newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
         }
         else if (not aIsOut and not bIsOut and cIsOut){  //abC
-            n1 = getClippedPoint(c, a);
+            n1 = getEdgePoint(c, a);
             newTriangles.push_back(PrimitiveTriangle{a, b, n1});
 
-            n2 = getClippedPoint(b, c);
+            n2 = getEdgePoint(b, c);
             newTriangles.push_back(PrimitiveTriangle{b, n2, n1});
         }
         else if (aIsOut and bIsOut and not cIsOut) //ABc
-            newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), c});
+            newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), c});
         else if (not aIsOut and bIsOut and cIsOut) //aBC
-            newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), a});
+            newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), a});
         else if (aIsOut and not bIsOut and cIsOut) //AbC
-            newTriangles.push_back(PrimitiveTriangle{getClippedPoint(c, a), getClippedPoint(c, b), b});
+            newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), b});
     }
-    primitiveTriangles.clear();
+    //primitiveTriangles.clear();
 
     /*---NDC---*/
     for (auto & primitiveTriangle: newTriangles){
@@ -739,17 +737,9 @@ void GPU::drawTriangles(uint32_t  nofVertices){
 
         primitiveTriangle.ov3.ov.gl_Position[x] = ((primitiveTriangle.ov3.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
         primitiveTriangle.ov3.ov.gl_Position[y] = ((primitiveTriangle.ov3.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
-        /*REQUIRE(primitiveTriangle.ov1.ov.gl_Position[0] < 500);
-        REQUIRE(primitiveTriangle.ov1.ov.gl_Position[1] < 500);
-        REQUIRE (primitiveTriangle.ov2.ov.gl_Position[0] < 500);
-        REQUIRE(primitiveTriangle.ov2.ov.gl_Position[1] < 500);
-        REQUIRE (primitiveTriangle.ov3.ov.gl_Position[0] < 500);
-        REQUIRE(primitiveTriangle.ov3.ov.gl_Position[1] < 500);*/
     }
 
     /*---RASTERIZATION---*/
-    //inspiration from https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation
-
     std::vector<InFragment> inFragments;
     OutFragment outFragment{};
     for (auto & primTri: newTriangles) {
@@ -758,13 +748,13 @@ void GPU::drawTriangles(uint32_t  nofVertices){
         OutAbstractVertex vertexC = primTri.ov3;
         std::vector<float> xs= {vertexA.ov.gl_Position[x], vertexB.ov.gl_Position[x], vertexC.ov.gl_Position[x],};
         std::vector<float> ys = {vertexA.ov.gl_Position[y], vertexB.ov.gl_Position[y], vertexC.ov.gl_Position[y],};
-        //get boundaries
+        // get boundaries
         int xmin = std::floor(*std::min_element(xs.begin(), xs.end()));
         int xmax = std::ceil(*std::max_element(xs.begin(), xs.end()));
         int ymin = std::floor(*std::min_element(ys.begin(), ys.end()));
         int ymax = std::ceil(*std::max_element(ys.begin(), ys.end()));
 
-        //clip out fragments out of clip space when user change the view
+        // clip out fragments out of clip space when user change the view
         if (xmin < 0)
             xmin = 0;
         if (ymin < 0)
@@ -776,20 +766,25 @@ void GPU::drawTriangles(uint32_t  nofVertices){
 
         float area = triangleSurface(vertexA, vertexB, vertexC);
         for (int x_bound = xmin; x_bound < xmax; ++x_bound) {
+            bool prevPixelOut = true;
             for (int y_bound = ymin; y_bound < ymax; ++y_bound) {
+                bool isInTriangle = false;
+                float deviation = 0.000976562;  // 2^-10 = 0.000976562
+
                 OutAbstractVertex pixelSample;
                 pixelSample.ov.gl_Position = glm::vec4{x_bound + 0.5, y_bound + 0.5, 0, 1};
+
                 float w0 = triangleSurface(vertexB, vertexC, pixelSample);
                 float w1 = triangleSurface(vertexC, vertexA, pixelSample);
                 float w2 = triangleSurface(vertexA, vertexB, pixelSample);
-                bool isInTriangle = false;
-                // 2^-10 = 0.000976562
-                float deviation = 0.000976562;
-                if (w0 + w1 + w2 < area and w0 + w1 + w2 > area * (1 - deviation)) isInTriangle = true;
-                else if (w0 + w1 + w2 > area and w0 + w1 + w2 < area * (1 + deviation)) isInTriangle = true;
-                else if (w0 + w1 + w2 == area) isInTriangle = true;
+
+                if (w0 + w1 + w2 < area * (1 + deviation) and w0 + w1 + w2 > area * (1 - deviation))
+                    isInTriangle = true;
+                // if previous pixel was in and actual pixel is out of triangle, then rest of pixels is skipped
+                if (not prevPixelOut and  not isInTriangle)
+                    break;
+                // if actual pixel is in triangle do rasterization
                 if (isInTriangle) {
-                    //frameBuffer->depthBuffer[sizeof(float ) * y_bound * getFramebufferWidth() + x_bound] = depth;
                     InFragment tmp;
                     tmp.gl_FragCoord = pixelSample.ov.gl_Position;
                     float l0 = w0 / area;
@@ -839,10 +834,12 @@ void GPU::drawTriangles(uint32_t  nofVertices){
                     }
                     inFragments.push_back(tmp);
                 }
+                prevPixelOut = not isInTriangle;
             }
         }
     }
     newTriangles.clear();
+    // depth correction, triangles which are nearer to camera should be drawn over the ones which are deeper
     for (auto inFragment: inFragments){
         program->fragmentShader(outFragment, inFragment, program->uniforms);
         auto actDepthPosition = ((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]);
@@ -859,9 +856,9 @@ void GPU::drawTriangles(uint32_t  nofVertices){
 }
 
 /**
- * @brief This method represents Vertex Processor
+ * @brief This method represents Vertex Processor. It processes each vertex from InVertex to OutVertex.
  * @param nofVertices number of vertices to process
- * @param outAbstractVertices array of OutAbstractVertex
+ * @param outAbstractVertices array for OutAbstractVertex
  * @param program active program with shaders etc.
  */
 void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractVertices, Program * program) {
@@ -870,6 +867,8 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
     InVertex inVertex;
     OutVertex outVertex;
     OutAbstractVertex outAbstractVertex;
+
+    // if indexing is enabled, use indexing, else use counter `i`
     int index = 0;
     for (int i = 0; i < nofVertices; i++) {
         if (vertexPullerSettings->indexing.enabled) {
@@ -884,33 +883,27 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
             index = i;
 
         int k = 0;
+        // set attributes for each enabled head with valid head buffer
         for (auto & attribute : inVertex.attributes) {
             auto head = vertexPullerSettings->heads[k];
-            if (head.enabled) {
+            if (head.enabled and isBuffer(head.buffer_id)) {
                 BufferID *headBuffer = (BufferID *) *std::find(bufferList.begin(), bufferList.end(), head.buffer_id);
                 outAbstractVertex.attributeType[k] = head.attrib_type;
                 switch (head.attrib_type) {
                     case AttributeType::FLOAT:{
-                        attribute.v1 = *((float *) ((size_t) headBuffer + head.offset +
-                                                                 head.stride * index));
+                        attribute.v1 = *((float *) ((size_t) headBuffer + head.offset + head.stride * index));
                         break;
                     }
                     case AttributeType::VEC2:{
-                        attribute.v2 = *((glm::vec2 *) ((size_t) headBuffer + head.offset +
-                                                                     head.stride * index));
+                        attribute.v2 = *((glm::vec2 *) ((size_t) headBuffer + head.offset + head.stride * index));
                         break;
                     }
                     case AttributeType::VEC3:{
-                        auto aaa = attribute.v3;
-                        auto aaaa =  *((glm::vec3 *) ((size_t) headBuffer + head.offset +
-                                                      head.stride * index));
-                        attribute.v3 = *((glm::vec3 *) ((size_t) headBuffer + head.offset +
-                                                                     head.stride * index));
+                        attribute.v3 = *((glm::vec3 *) ((size_t) headBuffer + head.offset + head.stride * index));
                         break;
                     }
                     case AttributeType::VEC4:{
-                        attribute.v4 = *((glm::vec4 *) ((size_t) headBuffer + head.offset +
-                                                                     head.stride * index));
+                        attribute.v4 = *((glm::vec4 *) ((size_t) headBuffer + head.offset + head.stride * index));
                         break;
                     }
                     default:
@@ -920,13 +913,13 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
             k++;
         }
         inVertex.gl_VertexID = index;
+        // vertex shader invocation
         program->vertexShader(outVertex, inVertex, program->uniforms);
         outAbstractVertex.ov = outVertex;
         outAbstractVertices[i] = outAbstractVertex;
     }
 }
 
-/// @}
 FrameBuffer::FrameBuffer(uint32_t width, uint32_t height) {
     this->height = height;
     this->width = width;
@@ -937,6 +930,7 @@ FrameBuffer::~FrameBuffer(){
     delete[] this->colorBuffer;
     delete[] this->depthBuffer;
 }
+
 /**
  * @brief Denormalize float to uint8_t by normalizer, e.g. num:0.5, normalize:256 => return:128
  * @param num number to denormalization
@@ -949,6 +943,7 @@ uint8_t denormalize_color(float num, uint8_t normalizer, bool trunc = false) {
         return (uint8_t)(fit_color(num) * (float)normalizer);
     return (uint8_t)(num * (float)normalizer);
 }
+
 /**
  * @brief Round float number to fit in <0.0, 1.0> interval
  * @param num number to round
@@ -962,23 +957,40 @@ float fit_color(float num) {
     return num;
 }
 
-OutAbstractVertex GPU::getClippedPoint(OutAbstractVertex a, OutAbstractVertex b){
+/**
+ * @brief Get a point which is exactly at the edge of near plane.
+ * The formula to find this point is: X(t) = A(t) + t * (B -A)
+ * @param a first vertex of the abscissa
+ * @param b second vertex of the abscissa
+ * @return point which is located at the edge
+ */
+OutAbstractVertex getEdgePoint(OutAbstractVertex a, OutAbstractVertex b){
     float numerator = (-a.ov.gl_Position[3] - a.ov.gl_Position[2]);
     float denominator = (b.ov.gl_Position[3] - a.ov.gl_Position[3] + b.ov.gl_Position[2] - a.ov.gl_Position[2]);
     float t =  numerator/denominator;
     OutAbstractVertex x;
+    // count new coordinates
     x.ov.gl_Position = a.ov.gl_Position + t * (b.ov.gl_Position - a.ov.gl_Position);
 
+    // count new attributes
     for (int i = 0; i < maxAttributes; i++) {
         switch (a.attributeType[i]) {
-            case AttributeType::FLOAT:
+            case AttributeType::FLOAT: {
                 x.ov.attributes[i].v1 = a.ov.attributes[i].v1 + t * (b.ov.attributes[i].v1 - a.ov.attributes[i].v1);
-            case AttributeType::VEC2:
+                break;
+            }
+            case AttributeType::VEC2:{
                 x.ov.attributes[i].v2 = a.ov.attributes[i].v2 + t * (b.ov.attributes[i].v2 - a.ov.attributes[i].v2);
-            case AttributeType::VEC3:
+                break;
+            }
+            case AttributeType::VEC3:{
                 x.ov.attributes[i].v3 = a.ov.attributes[i].v3 + t * (b.ov.attributes[i].v3 - a.ov.attributes[i].v3);
-            case AttributeType::VEC4:
+                break;
+            }
+            case AttributeType::VEC4:{
                 x.ov.attributes[i].v4 = a.ov.attributes[i].v4 + t * (b.ov.attributes[i].v4 - a.ov.attributes[i].v4);
+                break;
+            }
             default:
                 break;
         }
@@ -986,13 +998,16 @@ OutAbstractVertex GPU::getClippedPoint(OutAbstractVertex a, OutAbstractVertex b)
     return x;
 }
 
-float GPU::triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c){
+/**
+ * @brief Counts triangle surface from three vertices.
+ * The formula is: ABC_surface = |Ax * (By - Cy) + Bx * (Cy - Ay) + Cx * (Ay - By)|
+ * @param a first vertex
+ * @param b second vertex
+ * @param c third vertex
+ * @return triangle's surface
+ */
+float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c){
     return std::abs((a.ov.gl_Position[0] * (b.ov.gl_Position[1] - c.ov.gl_Position[1]) +
             b.ov.gl_Position[0] * (c.ov.gl_Position[1] - a.ov.gl_Position[1]) +
             c.ov.gl_Position[0] * (a.ov.gl_Position[1] - b.ov.gl_Position[1]))/2);
-}
-
-bool GPU::edgeFunction(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c) {
-    return ((c.ov.gl_Position[0] - a.ov.gl_Position[0]) * (b.ov.gl_Position[1] - a.ov.gl_Position[1]) -
-    (c.ov.gl_Position[1] - a.ov.gl_Position[1]) * (b.ov.gl_Position[0] - a.ov.gl_Position[0])) >= 0;
 }

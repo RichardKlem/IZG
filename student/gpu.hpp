@@ -18,6 +18,7 @@ class FrameBuffer{
         FrameBuffer(uint32_t width, uint32_t height);
         ~FrameBuffer();
 };
+
 class Program{
 public:
     VertexShader vertexShader{};
@@ -26,9 +27,8 @@ public:
     AttributeType attributeType[maxAttributes]{};
 };
 /**
- * This struct is necessary because the program needs to know AttributeType
- * of OutVertex attributes and union does not contain information about what
- * type of data is stored at the moment.
+ * Wrapper to save AttributeType of OutVertex attributes,
+ * because union does not contain information about what type of data is stored at the moment.
  */
 struct OutAbstractVertex {
     OutVertex ov;
@@ -88,9 +88,6 @@ class GPU{
     void      drawTriangles          (uint32_t  nofVertices);
 
     /// \addtogroup gpu_init 00. proměnné, inicializace / deinicializace grafické karty
-    /// @{
-    /// \todo zde si můžete vytvořit proměnné grafické karty (buffery, programy, ...)
-    /// @}
     std::list<BufferID> bufferList; //pole ukazatelu na buffery
     std::list<ObjectID> vertexPullerList; //pole ukazatelu na buffery
     std::list<ProgramID> programList;
@@ -99,9 +96,6 @@ class GPU{
     FrameBuffer * frameBuffer;
 
     void vertexProcessor(uint32_t nofVertices, OutAbstractVertex *outAbstractVertices, Program * program);
-    static OutAbstractVertex getClippedPoint(OutAbstractVertex a, OutAbstractVertex b);
-    static float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
-    bool edgeFunction(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
 };
 struct Head {
     BufferID buffer_id;
@@ -130,8 +124,8 @@ struct PrimitiveTriangle {
     OutAbstractVertex ov3;
 };
 
-
-
+OutAbstractVertex getEdgePoint(OutAbstractVertex a, OutAbstractVertex b);
+float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c);
 float normalize_color(uint8_t num, uint8_t normalizator, bool trunc);
 uint8_t denormalize_color(float num, uint8_t normalizer, bool trunc);
 float fit_color(float num);

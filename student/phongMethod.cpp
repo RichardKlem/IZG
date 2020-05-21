@@ -123,44 +123,41 @@ void phong_FS(OutFragment &outFragment, InFragment const &inFragment, Uniforms c
     /// Nepoužívejte ambientní světlo.<br>
     ///
     /// \image html images/fragment_shader_tasks.svg "Vizualizace výpočtu ve fragment shaderu" width=1000
-    float x, y, normX, normY, normZ;
+    float x, y;
     x = inFragment.attributes[0].v3[0];
     y = inFragment.attributes[0].v3[1];
-    normX = inFragment.attributes[1].v3[0];
-    normY = inFragment.attributes[1].v3[1];
-    normZ = inFragment.attributes[1].v3[2];
-
-    glm::vec4 color;
+    glm::vec3 normal = glm::vec3 {inFragment.attributes[1].v3[0],
+                                  inFragment.attributes[1].v3[1],
+                                  inFragment.attributes[1].v3[2]};
     glm::vec4 white = {1.f,1.f,1.f,1.f};
     glm::vec4 green = {0.f,.5f,0.f,1.f};
     glm::vec4 yellow = {1.f,1.f,0.f,1.f};
+    glm::vec4 color = green;
     float devnull;
 
     float texture = modff((x + sinf(y * 10.f) * 0.1f) * 5.f, &devnull);
 
-    if ((texture >= 0.f and texture > .5f) or (texture < 0.f and std::abs(texture) < .5f))
+    if ((texture > .5f) or (texture < 0.f and (texture) > -.5f))
         color = yellow;
-    else
-        color = green;
 
-    if (normY > 0.f){
-        float n_size = sqrtf(normX * normX + normY * normY + normZ * normZ);
-        float normalized_y = normY / n_size;
-        float t = normalized_y * normalized_y;
-
-        color = color + t * (white - color);
+    if (normal[1] > 0.f){
+        glm::vec3 normalized_normal = glm::normalize(normal);
+        float t = normalized_normal[1] * normalized_normal[1];
+        color += t * (white - color);
     }
-    //difuse light
-    glm::vec3 light_vec = glm::normalize(uniforms.uniform[2].v3 - inFragment.attributes[0].v3);
-    glm::vec3 normal_vec = glm::normalize(inFragment.attributes[1].v3);
-    glm::vec3 camera_vec = glm::normalize(uniforms.uniform[3].v3 - inFragment.attributes[0].v3);
 
-    color = dotVec3(normal_vec, light_vec) * white * color;
+    // Count diffuse light
+    glm::vec3 lightVec = glm::normalize(uniforms.uniform[2].v3 - inFragment.attributes[0].v3);
+    glm::vec3 normalVec = glm::normalize(inFragment.attributes[1].v3);
+    auto normLightVec = dotVec3(normalVec, lightVec);
 
-    //specular light
-    if (dotVec3(normal_vec, light_vec) != 0 && dotVec3(camera_vec, normal_vec) != 0){
-        glm::vec3 r = glm::normalize(2 * dotVec3(normal_vec, light_vec)*normal_vec - light_vec);
-        color += white * powf(dotVec3(camera_vec, r), 40.f);
+    color = normLightVec * white * color;
+
+    // specular light
+    glm::vec3 cameraVec = glm::normalize(uniforms.uniform[3].v3 - inFragment.attributes[0].v3);
+    if (normLightVec != 0 and dotVec3(cameraVec, normalVec) != 0){
+        glm::vec3 r = glm::normalize(2 * normLightVec * normalVec - lightVec);
+        color += white * powf(dotVec3(cameraVec, r), 40.f);
     }
 
     for (int i = 0; i < 4; i++)
@@ -181,7 +178,6 @@ void phong_FS(OutFragment &outFragment, InFragment const &inFragment, Uniforms c
  * @brief Constructoro f phong method
  */
 PhongMethod::PhongMethod(){
-/// \todo Doprogramujte inicializační funkci.
 /// Zde byste měli vytvořit buffery na GPU, nahrát data do bufferů, vytvořit
 /// vertex puller a správně jej nakonfigurovat, vytvořit program, připojit k
 /// němu shadery a nastavit atributy, které se posílají mezi vs a fs.
@@ -234,8 +230,6 @@ PhongMethod::PhongMethod(){
  * @param camera camera position
  */
 void PhongMethod::onDraw(glm::mat4 const &proj, glm::mat4 const &view, glm::vec3 const &light, glm::vec3 const &camera){
-
-/// \todo Doprogramujte kreslící funkci.
 /// Zde byste měli aktivovat shader program, aktivovat vertex puller, nahrát
 /// data do uniformních proměnných a
 /// vykreslit trojúhelníky pomocí funkce \ref GPU::drawTriangles.
@@ -273,7 +267,12 @@ PhongMethod::~PhongMethod(){
     gpu.deleteVertexPuller(vertexPuller);
     gpu.deleteProgram(program);
 }
-
+/**
+ * @brief
+ * @param a
+ * @param b
+ * @return
+ */
 float dotVec3(glm::vec3 a, glm::vec3 b){
     return fit_color(glm::dot(a, b));
 }
