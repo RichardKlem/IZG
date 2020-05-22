@@ -6,10 +6,11 @@
  */
 #include <cmath>
 #include <glm/glm.hpp>
-#include "gpu.hpp"
 
 #include <student/phongMethod.hpp>
 #include <student/bunny.hpp>
+
+#include "gpu.hpp"
 
 /** \addtogroup shader_side 06. Implementace vertex/fragment shaderu phongovy metody
  * Vašim úkolem ve vertex a fragment shaderu je transformovat trojúhelníky pomocí view a projekční matice a spočítat phongův osvětlovací model.

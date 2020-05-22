@@ -7,7 +7,6 @@
 
 #include <cmath>
 #include <student/gpu.hpp>
-#include <list>
 #include <algorithm>
 #include <new>
 #include <cstring>

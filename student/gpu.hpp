@@ -8,7 +8,7 @@
 
 #include <student/fwd.hpp>
 #include <vector>
-#include "list"
+#include <list>
 
 class FrameBuffer{
     public:
@@ -21,11 +21,11 @@ class FrameBuffer{
 };
 
 class Program{
-public:
-    VertexShader vertexShader{};
-    FragmentShader fragmentShader{};
-    Uniforms uniforms;
-    AttributeType attributeType[maxAttributes]{};
+    public:
+        VertexShader vertexShader{};
+        FragmentShader fragmentShader{};
+        Uniforms uniforms;
+        AttributeType attributeType[maxAttributes]{};
 };
 /**
  * Wrapper to save AttributeType of OutVertex attributes,
@@ -95,8 +95,8 @@ class GPU{
     void      drawTriangles          (uint32_t  nofVertices);
 
     /// \addtogroup gpu_init 00. proměnné, inicializace / deinicializace grafické karty
-    std::list<BufferID> bufferList; //pole ukazatelu na buffery
-    std::list<ObjectID> vertexPullerList; //pole ukazatelu na buffery
+    std::list<BufferID> bufferList;
+    std::list<ObjectID> vertexPullerList;
     std::list<ProgramID> programList;
     ObjectID * activeVertexPuller;
     ProgramID * activeProgram{};
