@@ -7,6 +7,7 @@
 #pragma once
 
 #include <student/fwd.hpp>
+#include <vector>
 #include "list"
 
 class FrameBuffer{
@@ -33,6 +34,12 @@ public:
 struct OutAbstractVertex {
     OutVertex ov;
     AttributeType attributeType[maxAttributes]{};
+};
+
+struct PrimitiveTriangle {
+    OutAbstractVertex ov1;
+    OutAbstractVertex ov2;
+    OutAbstractVertex ov3;
 };
 
 /**
@@ -92,10 +99,16 @@ class GPU{
     std::list<ObjectID> vertexPullerList; //pole ukazatelu na buffery
     std::list<ProgramID> programList;
     ObjectID * activeVertexPuller;
-    ProgramID * activeProgram;
+    ProgramID * activeProgram{};
     FrameBuffer * frameBuffer;
 
     void vertexProcessor(uint32_t nofVertices, OutAbstractVertex *outAbstractVertices, Program * program);
+
+    void rasterize(const Program *program, std::vector<InFragment> &inFragments, const PrimitiveTriangle &primTri);
+
+    void viewport_transform(PrimitiveTriangle &primitiveTriangle) const;
+
+    void depth_correction(const OutFragment &outFragment, const InFragment &inFragment) const;
 };
 struct Head {
     BufferID buffer_id;
@@ -115,13 +128,8 @@ class Vertex_puller_settings {
     public:
         Vertex_puller_settings();
         virtual ~Vertex_puller_settings();
-        Head heads[maxAttributes];
-        Indexing indexing;
-};
-struct PrimitiveTriangle {
-    OutAbstractVertex ov1;
-    OutAbstractVertex ov2;
-    OutAbstractVertex ov3;
+        Head heads[maxAttributes]{};
+        Indexing indexing{};
 };
 
 OutAbstractVertex getEdgePoint(OutAbstractVertex a, OutAbstractVertex b);
@@ -129,4 +137,6 @@ float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVer
 float normalize_color(uint8_t num, uint8_t normalizator, bool trunc);
 uint8_t denormalize_color(float num, uint8_t normalizer, bool trunc);
 float fit_color(float num);
+void clip(std::vector<PrimitiveTriangle> &newTriangles, const PrimitiveTriangle &primitiveTriangle);
+void ndc(PrimitiveTriangle &primitiveTriangle);
 

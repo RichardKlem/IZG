@@ -8,18 +8,14 @@
 #include <cmath>
 #include <student/gpu.hpp>
 #include <list>
-#include <iostream>
 #include <algorithm>
 #include <new>
 #include <cstring>
 #include <array>
 #include <vector>
-#include <typeinfo>
 
-#include <tests/catch.hpp>
-
-Vertex_puller_settings::Vertex_puller_settings(){}
-Vertex_puller_settings::~Vertex_puller_settings(){}
+Vertex_puller_settings::Vertex_puller_settings()= default;
+Vertex_puller_settings::~Vertex_puller_settings()= default;
 
 /// \addtogroup gpu_init
 /// @{
@@ -28,7 +24,6 @@ Vertex_puller_settings::~Vertex_puller_settings(){}
  * @brief Constructor of GPU
  */
 GPU::GPU(){
-  /// \todo Zde můžete alokovat/inicializovat potřebné proměnné grafické karty
   activeVertexPuller = nullptr;
   frameBuffer = nullptr;
 }
@@ -36,9 +31,7 @@ GPU::GPU(){
 /**
  * @brief Destructor of GPU
  */
-GPU::~GPU(){
-  /// \todo Zde můžete dealokovat/deinicializovat grafickou kartu
-}
+GPU::~GPU()= default;
 
 /// @}
 
@@ -54,15 +47,14 @@ GPU::~GPU(){
  * @return unique identificator of the buffer
  */
 BufferID GPU::createBuffer(uint64_t size) {
-  /// \todo Tato funkce by měla na grafické kartě vytvořit buffer dat.<br>
+  ///  Tato funkce by měla na grafické kartě vytvořit buffer dat.<br>
   /// Velikost bufferu je v parameteru size (v bajtech).<br>
   /// Funkce by měla vrátit unikátní identifikátor identifikátor bufferu.<br>
   /// Na grafické kartě by mělo být možné alkovat libovolné množství bufferů o libovolné velikosti.<br>
-    BufferID * buff;
     try {
-        buff = new BufferID[size];
-        bufferList.push_back((BufferID)buff); //ukladam si ukazatele na buffery
-        return (BufferID)buff; //vracim pretypovany ukazatel
+        auto * buff = new BufferID[size];
+        bufferList.push_back((BufferID)buff);
+        return (BufferID)buff;
     }
     catch (std::bad_alloc&) {
         return emptyID;
@@ -75,17 +67,14 @@ BufferID GPU::createBuffer(uint64_t size) {
  * @param buffer buffer identificator
  */
 void GPU::deleteBuffer(BufferID buffer) {
-  /// \todo Tato funkce uvolní buffer na grafické kartě.
+  ///  Tato funkce uvolní buffer na grafické kartě.
   /// Buffer pro smazání je vybrán identifikátorem v parameteru "buffer".
   /// Po uvolnění bufferu je identifikátor volný a může být znovu použit při vytvoření nového bufferu.
-    BufferID * tmp; //pomocny ukazatel na buffer v listu bufferu
-    std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
-    //kdyz buffer naleznu
+    auto it = std::find(bufferList.begin(), bufferList.end(), buffer);
     if (it != bufferList.end()){
-        tmp = (BufferID *) *it; //ulozim si hodnotu iteratoru, tedy ukazatel na buffer
-        bufferList.erase(it); //smazu zaznam o bufferu z listu
-        delete tmp; //dealokuji buffer
+        auto * tmp = (BufferID *) *it;
+        bufferList.erase(it);
+        delete tmp;
     }
 }
 
@@ -98,13 +87,12 @@ void GPU::deleteBuffer(BufferID buffer) {
  * @param data specifies a pointer to new data
  */
 void GPU::setBufferData(BufferID buffer, uint64_t offset, uint64_t size, void const* data) {
-  /// \todo Tato funkce nakopíruje data z cpu na "gpu".<br>
+  ///  Tato funkce nakopíruje data z cpu na "gpu".<br>
   /// Data by měla být nakopírována do bufferu vybraného parametrem "buffer".<br>
   /// Parametr size určuje, kolik dat (v bajtech) se překopíruje.<br>
   /// Parametr offset určuje místo v bufferu (posun v bajtech) kam se data nakopírují.<br>
   /// Parametr data obsahuje ukazatel na data na cpu pro kopírování.<br>
-    std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
+    auto it = std::find(bufferList.begin(), bufferList.end(), buffer);
     memcpy(reinterpret_cast<void *>(*it + (BufferID) offset), data, size);
 }
 
@@ -121,13 +109,12 @@ void GPU::getBufferData(BufferID buffer,
                         uint64_t size,
                         void*    data)
 {
-  /// \todo Tato funkce vykopíruje data z "gpu" na cpu.
+  ///  Tato funkce vykopíruje data z "gpu" na cpu.
   /// Data by měla být vykopírována z bufferu vybraného parametrem "buffer".<br>
   /// Parametr size určuje kolik dat (v bajtech) se překopíruje.<br>
   /// Parametr offset určuje místo v bufferu (posun v bajtech) odkud se začne kopírovat.<br>
   /// Parametr data obsahuje ukazatel, kam se data nakopírují.<br>
-    std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
+    auto it = std::find(bufferList.begin(), bufferList.end(), buffer);
     memcpy(data, reinterpret_cast<const void *>(*it + (BufferID)offset), size);
 }
 
@@ -139,12 +126,10 @@ void GPU::getBufferData(BufferID buffer,
  * @return true if buffer points to existing buffer on the GPU.
  */
 bool GPU::isBuffer(BufferID buffer) {
-  /// \todo Tato funkce by měla vrátit true pokud buffer je identifikátor existující bufferu.<br>
+  ///  Tato funkce by měla vrátit true pokud buffer je identifikátor existující bufferu.<br>
   /// Tato funkce by měla vrátit false, pokud buffer není identifikátor existujícího bufferu. (nebo bufferu, který byl smazán).<br>
   /// Pro emptyId vrací false.<br>
-    std::list<BufferID>::iterator it; //iterator na hledani bufferu v listu
-    it = std::find(bufferList.begin(), bufferList.end(), buffer); //nalezeni bufferu v listu
-    //kdyz buffer naleznu
+    auto it = std::find(bufferList.begin(), bufferList.end(), buffer);
     if (buffer == emptyID)
         return false;
     return it != bufferList.end();
@@ -162,14 +147,14 @@ bool GPU::isBuffer(BufferID buffer) {
  *
  * @return unique vertex puller identificator
  */
-ObjectID GPU::createVertexPuller     (){
-  /// \todo Tato funkce vytvoří novou práznou tabulku s nastavením pro vertex puller.<br>
+ObjectID GPU::createVertexPuller(){
+  ///  Tato funkce vytvoří novou práznou tabulku s nastavením pro vertex puller.<br>
   /// Funkce by měla vrátit identifikátor nové tabulky.
   /// Prázdná tabulka s nastavením neobsahuje indexování a všechny čtecí hlavy jsou vypnuté.
     auto * vertex_puller = new Vertex_puller_settings;
     vertex_puller->indexing.enabled = false;
-    vertexPullerList.push_back((ObjectID) vertex_puller); //ukladam si ukazatele na buffery
-        return (ObjectID) vertex_puller; //vracim pretypovany ukazatel
+    vertexPullerList.push_back((ObjectID) vertex_puller);
+        return (ObjectID) vertex_puller;
 }
 
 /**
@@ -177,18 +162,15 @@ ObjectID GPU::createVertexPuller     (){
  *
  * @param vao vertex puller identificator
  */
-void     GPU::deleteVertexPuller     (VertexPullerID vao){
-  /// \todo Tato funkce by měla odstranit tabulku s nastavení pro vertex puller.<br>
+void GPU::deleteVertexPuller(VertexPullerID vao){
+  ///  Tato funkce by měla odstranit tabulku s nastavení pro vertex puller.<br>
   /// Parameter "vao" obsahuje identifikátor tabulky s nastavením.<br>
   /// Po uvolnění nastavení je identifiktátor volný a může být znovu použit.<br>
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
-    //kdyz VertexPulleru naleznu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     if (it != vertexPullerList.end()){
-        tmp = (ObjectID *) *it; //ulozim si hodnotu iteratoru, tedy ukazatel na VertexPulleru
-        vertexPullerList.erase(it); //smazu zaznam o bufferu z listu
-        delete tmp; //dealokuji VP
+        auto tmp = (ObjectID *) *it;
+        vertexPullerList.erase(it);
+        delete tmp;
     }
 }
 
@@ -202,21 +184,22 @@ void     GPU::deleteVertexPuller     (VertexPullerID vao){
  * @param offset offset in bytes
  * @param buffer id of buffer
  */
-void     GPU::setVertexPullerHead    (VertexPullerID vao,uint32_t head,AttributeType type,uint64_t stride,uint64_t offset,BufferID buffer){
-  /// \todo Tato funkce nastaví jednu čtecí hlavu vertex pulleru.<br>
+void GPU::setVertexPullerHead(VertexPullerID vao,
+                              uint32_t head,
+                              AttributeType type,
+                              uint64_t stride,
+                              uint64_t offset,
+                              BufferID buffer){
+  ///  Tato funkce nastaví jednu čtecí hlavu vertex pulleru.<br>
   /// Parametr "vao" vybírá tabulku s nastavením.<br>
   /// Parametr "head" vybírá čtecí hlavu vybraného vertex pulleru.<br>
   /// Parametr "type" nastaví typ atributu, který čtecí hlava čte. Tímto se vybere kolik dat v bajtech se přečte.<br>
   /// Parametr "stride" nastaví krok čtecí hlavy.<br>
   /// Parametr "offset" nastaví počáteční pozici čtecí hlavy.<br>
   /// Parametr "buffer" vybere buffer, ze kterého bude čtecí hlava číst.<br>
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    Vertex_puller_settings * vao_tmp;
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
-    //kdyz VertexPulleru naleznu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     if (it != vertexPullerList.end()){
-        vao_tmp = (Vertex_puller_settings *) *it;
+        auto vao_tmp = (Vertex_puller_settings *) *it;
         vao_tmp->heads[head].attrib_type = type;
         vao_tmp->heads[head].stride = stride;
         vao_tmp->heads[head].offset = offset;
@@ -231,17 +214,14 @@ void     GPU::setVertexPullerHead    (VertexPullerID vao,uint32_t head,Attribute
  * @param type type of index
  * @param buffer buffer with indices
  */
-void     GPU::setVertexPullerIndexing(VertexPullerID vao,IndexType type,BufferID buffer){
-  /// \todo Tato funkce nastaví indexování vertex pulleru.
+void GPU::setVertexPullerIndexing(VertexPullerID vao,IndexType type,BufferID buffer){
+  ///  Tato funkce nastaví indexování vertex pulleru.
   /// Parametr "vao" vybírá tabulku s nastavením.<br>
   /// Parametr "type" volí typ indexu, který je uložený v bufferu.<br>
   /// Parametr "buffer" volí buffer, ve kterém jsou uloženy indexy.<br>
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    Vertex_puller_settings * vao_tmp;
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     if (it != vertexPullerList.end()){
-        vao_tmp = (Vertex_puller_settings *) *it;
+        auto vao_tmp = (Vertex_puller_settings *) *it;
         vao_tmp->indexing.enabled = true;
         vao_tmp->indexing.buffer_id = buffer;
         vao_tmp->indexing.index_type = type;
@@ -254,19 +234,14 @@ void     GPU::setVertexPullerIndexing(VertexPullerID vao,IndexType type,BufferID
  * @param vao vertex puller
  * @param head head id
  */
-void     GPU::enableVertexPullerHead (VertexPullerID vao,uint32_t head){
-  /// \todo Tato funkce povolí čtecí hlavu daného vertex pulleru.<br>
+void GPU::enableVertexPullerHead(VertexPullerID vao,uint32_t head){
+  ///  Tato funkce povolí čtecí hlavu daného vertex pulleru.<br>
   /// Pokud je čtecí hlava povolena, hodnoty z bufferu se budou kopírovat do atributu vrcholů vertex shaderu.<br>
   /// Parametr "vao" volí tabulku s nastavením vertex pulleru (vybírá vertex puller).<br>
   /// Parametr "head" volí čtecí hlavu.<br>
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    Vertex_puller_settings * vao_tmp;
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
-    //kdyz VertexPulleru naleznu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     if (it != vertexPullerList.end()){
-        vao_tmp = (Vertex_puller_settings *) *it;
-        vao_tmp->heads[head].enabled = true;
+        ((Vertex_puller_settings *) *it)->heads[head].enabled = true;
     }
 }
 
@@ -276,18 +251,13 @@ void     GPU::enableVertexPullerHead (VertexPullerID vao,uint32_t head){
  * @param vao vertex puller id
  * @param head head id
  */
-void     GPU::disableVertexPullerHead(VertexPullerID vao,uint32_t head){
-  /// \todo Tato funkce zakáže čtecí hlavu daného vertex pulleru.<br>
+void GPU::disableVertexPullerHead(VertexPullerID vao,uint32_t head){
+  ///  Tato funkce zakáže čtecí hlavu daného vertex pulleru.<br>
   /// Pokud je čtecí hlava zakázána, hodnoty z bufferu se nebudou kopírovat do atributu vrcholu.<br>
   /// Parametry "vao" a "head" vybírají vertex puller a čtecí hlavu.<br>
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    Vertex_puller_settings * vao_tmp;
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
-    //kdyz VertexPulleru naleznu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     if (it != vertexPullerList.end()){
-        vao_tmp = (Vertex_puller_settings *) *it;
-        vao_tmp->heads[head].enabled = false;
+        ((Vertex_puller_settings *) *it)->heads[head].enabled = false;
     }
 }
 
@@ -296,14 +266,10 @@ void     GPU::disableVertexPullerHead(VertexPullerID vao,uint32_t head){
  *
  * @param vao id of vertex puller
  */
-void     GPU::bindVertexPuller       (VertexPullerID vao){
-  /// \todo Tato funkce aktivuje nastavení vertex pulleru.<br>
+void GPU::bindVertexPuller(VertexPullerID vao){
+  ///  Tato funkce aktivuje nastavení vertex pulleru.<br>
   /// Pokud je daný vertex puller aktivován, atributy z bufferů jsou vybírány na základě jeho nastavení.<br>
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    Vertex_puller_settings * vao_tmp;
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
-    //kdyz VertexPulleru naleznu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     if (it != vertexPullerList.end()){
         this->activeVertexPuller = (ObjectID *) *it;
     }
@@ -312,8 +278,8 @@ void     GPU::bindVertexPuller       (VertexPullerID vao){
 /**
  * @brief This function deactivates vertex puller.
  */
-void     GPU::unbindVertexPuller     (){
-  /// \todo Tato funkce deaktivuje vertex puller.
+void GPU::unbindVertexPuller(){
+  ///  Tato funkce deaktivuje vertex puller.
   /// To většinou znamená, že se vybere neexistující "emptyID" vertex puller.
     this->activeVertexPuller = nullptr;
 }
@@ -325,14 +291,10 @@ void     GPU::unbindVertexPuller     (){
  *
  * @return true, if vertex puller "vao" exists
  */
-bool     GPU::isVertexPuller         (VertexPullerID vao){
-  /// \todo Tato funkce otestuje, zda daný vertex puller existuje.
+bool GPU::isVertexPuller (VertexPullerID vao){
+  ///  Tato funkce otestuje, zda daný vertex puller existuje.
   /// Pokud ano, funkce vrací true.
-    ObjectID * tmp; //pomocny ukazatel na vertexPuller v listu VertexPulleru
-    Vertex_puller_settings * vao_tmp;
-    std::list<ObjectID>::iterator it; //iterator na hledani VertexPulleru v listu
-    it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao); //nalezeni VertexPulleru v listu
-    //kdyz VertexPulleru naleznu
+    auto it = std::find(vertexPullerList.begin(), vertexPullerList.end(), vao);
     return it != vertexPullerList.end();
 }
 
@@ -348,7 +310,7 @@ bool     GPU::isVertexPuller         (VertexPullerID vao){
  * @return shader program id
  */
 ProgramID GPU::createProgram(){
-  /// \todo Tato funkce by měla vytvořit nový shader program.<br>
+  ///  Tato funkce by měla vytvořit nový shader program.<br>
   /// Funkce vrací unikátní identifikátor nového proramu.<br>
   /// Program je seznam nastavení, které obsahuje: ukazatel na vertex a fragment shader.<br>
   /// Dále obsahuje uniformní proměnné a typ výstupních vertex attributů z vertex shaderu, které jsou použity pro interpolaci do fragment atributů.<br>
@@ -362,14 +324,13 @@ ProgramID GPU::createProgram(){
  *
  * @param prg shader program id
  */
-void             GPU::deleteProgram         (ProgramID prg){
-  /// \todo Tato funkce by měla smazat vybraný shader program.<br>
+void GPU::deleteProgram(ProgramID prg){
+  ///  Tato funkce by měla smazat vybraný shader program.<br>
   /// Funkce smaže nastavení shader programu.<br>
   /// Identifikátor programu se stane volným a může být znovu využit.<br>
-    ProgramID * tmp;
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end()){
-        tmp = (ProgramID *) *it;
+        auto tmp = (ProgramID *) *it;
         programList.erase(it);
         delete tmp;
     }
@@ -382,8 +343,8 @@ void             GPU::deleteProgram         (ProgramID prg){
  * @param vs vertex shader
  * @param fs fragment shader
  */
-void             GPU::attachShaders         (ProgramID prg,VertexShader vs,FragmentShader fs){
-  /// \todo Tato funkce by měla připojít k vybranému shader programu vertex a fragment shader.
+void GPU::attachShaders(ProgramID prg,VertexShader vs,FragmentShader fs){
+  ///  Tato funkce by měla připojít k vybranému shader programu vertex a fragment shader.
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end()){
         ((Program *) *it)->vertexShader = vs;
@@ -398,8 +359,8 @@ void             GPU::attachShaders         (ProgramID prg,VertexShader vs,Fragm
  * @param attrib id of attribute
  * @param type type of attribute
  */
-void             GPU::setVS2FSType          (ProgramID prg, uint32_t attrib, AttributeType type){
-  /// \todo tato funkce by měla zvolit typ vertex atributu, který je posílán z vertex shaderu do fragment shaderu.<br>
+void GPU::setVS2FSType(ProgramID prg, uint32_t attrib, AttributeType type){
+  ///  tato funkce by měla zvolit typ vertex atributu, který je posílán z vertex shaderu do fragment shaderu.<br>
   /// V průběhu rasterizace vznikají fragment.<br>
   /// Fragment obsahují fragment atributy.<br>
   /// Tyto atributy obsahují interpolované hodnoty vertex atributů.<br>
@@ -416,8 +377,8 @@ void             GPU::setVS2FSType          (ProgramID prg, uint32_t attrib, Att
  *
  * @param prg shader program id
  */
-void             GPU::useProgram            (ProgramID prg){
-  /// \todo tato funkce by měla vybrat aktivní shader program.
+void GPU::useProgram(ProgramID prg){
+  ///  tato funkce by měla vybrat aktivní shader program.
     this->activeProgram = (ProgramID *)prg;
 }
 
@@ -428,8 +389,8 @@ void             GPU::useProgram            (ProgramID prg){
  *
  * @return true, if shader program "prg" exists.
  */
-bool             GPU::isProgram             (ProgramID prg){
-  /// \todo tato funkce by měla zjistit, zda daný program existuje.<br>
+bool GPU::isProgram(ProgramID prg){
+  ///  tato funkce by měla zjistit, zda daný program existuje.<br>
   /// Funkce vráti true, pokud program existuje.<br>
     auto it = std::find(programList.begin(), programList.end(), prg);
     return it != programList.end();
@@ -442,8 +403,8 @@ bool             GPU::isProgram             (ProgramID prg){
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniform1f      (ProgramID prg, uint32_t uniformId, float const &d){
-  /// \todo tato funkce by měla nastavit uniformní proměnnou shader programu.<br>
+void GPU::programUniform1f(ProgramID prg, uint32_t uniformId, float const &d){
+  ///  tato funkce by měla nastavit uniformní proměnnou shader programu.<br>
   /// Parametr "prg" vybírá shader program.<br>
   /// Parametr "uniformId" vybírá uniformní proměnnou. Maximální počet uniformních proměnných je uložen v programné \link maxUniforms \endlink.<br>
   /// Parametr "d" obsahuje data (1 float).<br>
@@ -459,8 +420,8 @@ void             GPU::programUniform1f      (ProgramID prg, uint32_t uniformId, 
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniform2f      (ProgramID prg, uint32_t uniformId, glm::vec2 const&d){
-  /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
+void GPU::programUniform2f(ProgramID prg, uint32_t uniformId, glm::vec2 const&d){
+  ///  tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává 2 floaty.
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end())
@@ -474,8 +435,8 @@ void             GPU::programUniform2f      (ProgramID prg, uint32_t uniformId, 
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniform3f      (ProgramID prg,uint32_t uniformId,glm::vec3 const&d){
-  /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
+void GPU::programUniform3f(ProgramID prg,uint32_t uniformId,glm::vec3 const&d){
+  ///  tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává 3 floaty.
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end())
@@ -489,8 +450,8 @@ void             GPU::programUniform3f      (ProgramID prg,uint32_t uniformId,gl
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniform4f      (ProgramID prg,uint32_t uniformId,glm::vec4 const&d){
-  /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
+void GPU::programUniform4f(ProgramID prg,uint32_t uniformId,glm::vec4 const&d){
+  ///  tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává 4 floaty.
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end())
@@ -504,8 +465,8 @@ void             GPU::programUniform4f      (ProgramID prg,uint32_t uniformId,gl
  * @param uniformId id of uniform value (number of uniform values is stored in maxUniforms variable)
  * @param d value of uniform variable
  */
-void             GPU::programUniformMatrix4f(ProgramID prg,uint32_t uniformId,glm::mat4 const&d){
-  /// \todo tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
+void GPU::programUniformMatrix4f(ProgramID prg,uint32_t uniformId,glm::mat4 const&d){
+  ///  tato funkce dělá obdobnou věc jako funkce programUniform1f.<br>
   /// Místo 1 floatu nahrává matici 4x4 (16 floatů).
     auto it = std::find(programList.begin(), programList.end(), prg);
     if (it != programList.end())
@@ -529,7 +490,7 @@ void             GPU::programUniformMatrix4f(ProgramID prg,uint32_t uniformId,gl
  * @param height height of framebuffer
  */
 void GPU::createFramebuffer(uint32_t width, uint32_t height){
-  /// \todo Tato funkce by měla alokovat framebuffer od daném rozlišení.<br>
+  ///  Tato funkce by měla alokovat framebuffer od daném rozlišení.<br>
   /// Framebuffer se skládá z barevného a hloukového bufferu.<br>
   /// Buffery obsahují width x height pixelů.<br>
   /// Barevný pixel je složen z 4 x uint8_t hodnot - to reprezentuje RGBA barvu.<br>
@@ -542,7 +503,7 @@ void GPU::createFramebuffer(uint32_t width, uint32_t height){
  * @brief This function deletes framebuffer.
  */
 void GPU::deleteFramebuffer(){
-  /// \todo tato funkce by měla dealokovat framebuffer.
+  ///  tato funkce by měla dealokovat framebuffer.
   delete this->frameBuffer;
 }
 
@@ -553,7 +514,7 @@ void GPU::deleteFramebuffer(){
  * @param height new heght of framebuffer
  */
 void GPU::resizeFramebuffer(uint32_t width,uint32_t height){
-  /// \todo Tato funkce by měla změnit velikost framebuffer.
+  ///  Tato funkce by měla změnit velikost framebuffer.
     GPU::deleteFramebuffer();
     GPU::createFramebuffer(width, height);
 }
@@ -563,8 +524,8 @@ void GPU::resizeFramebuffer(uint32_t width,uint32_t height){
  *
  * @return pointer to color buffer
  */
-uint8_t* GPU::getFramebufferColor  (){
-  /// \todo Tato funkce by měla vrátit ukazatel na začátek barevného bufferu.<br>
+uint8_t * GPU::getFramebufferColor(){
+  ///  Tato funkce by měla vrátit ukazatel na začátek barevného bufferu.<br>
     return reinterpret_cast<uint8_t *>(this->frameBuffer->colorBuffer);
 }
 
@@ -573,8 +534,8 @@ uint8_t* GPU::getFramebufferColor  (){
  *
  * @return pointer to dept buffer.
  */
-float* GPU::getFramebufferDepth    (){
-  /// \todo tato funkce by mla vrátit ukazatel na začátek hloubkového bufferu.<br>
+float * GPU::getFramebufferDepth(){
+  ///  tato funkce by mla vrátit ukazatel na začátek hloubkového bufferu.<br>
   return this->frameBuffer->depthBuffer;
 }
 
@@ -583,8 +544,8 @@ float* GPU::getFramebufferDepth    (){
  *
  * @return width of framebuffer
  */
-uint32_t GPU::getFramebufferWidth (){
-  /// \todo Tato funkce by měla vrátit šířku framebufferu.
+uint32_t GPU::getFramebufferWidth(){
+  ///  Tato funkce by měla vrátit šířku framebufferu.
   return this->frameBuffer->width;
 }
 
@@ -594,7 +555,7 @@ uint32_t GPU::getFramebufferWidth (){
  * @return height of framebuffer
  */
 uint32_t GPU::getFramebufferHeight(){
-  /// \todo Tato funkce by měla vrátit výšku framebufferu.
+  ///  Tato funkce by měla vrátit výšku framebufferu.
   return this->frameBuffer->height;
 }
 
@@ -614,7 +575,7 @@ uint32_t GPU::getFramebufferHeight(){
  * @param a alpha channel
  */
 void GPU::clear(float r,float g,float b,float a){
-  /// \todo Tato funkce by měla vyčistit framebuffer.<br>
+  ///  Tato funkce by měla vyčistit framebuffer.<br>
   /// Barevný buffer vyčistí na barvu podle parametrů r g b a (0 - nulová intenzita, 1 a větší - maximální intenzita).<br>
   /// (0,0,0) - černá barva, (1,1,1) - bílá barva.<br>
   /// Hloubkový buffer nastaví na takovou hodnotu, která umožní rasterizaci trojúhelníka, který leží v rámci pohledového tělesa.<br>
@@ -636,7 +597,6 @@ void GPU::clear(float r,float g,float b,float a){
         depthBuffer[i] = FLT_MAX;
     }
 }
-
 
 void GPU::drawTriangles(uint32_t  nofVertices){
   /// Vrcholy se budou vybírat podle nastavení z aktivního vertex pulleru (pomocí bindVertexPuller).<br>
@@ -663,196 +623,240 @@ void GPU::drawTriangles(uint32_t  nofVertices){
     delete[] outAbstractVertices;
 
     /*---CLIPPING---*/
-    OutAbstractVertex a, b, c, n1, n2;
-    bool aIsOut, bIsOut, cIsOut;
     int x = 0, y = 1, z = 2, w = 3;
     std::vector<PrimitiveTriangle> newTriangles ;
-
-    for (auto primitiveTriangle : primitiveTriangles){
-        a = primitiveTriangle.ov1;
-        b = primitiveTriangle.ov2;
-        c = primitiveTriangle.ov3;
-        aIsOut = -a.ov.gl_Position[w] > a.ov.gl_Position[z];
-        bIsOut = -b.ov.gl_Position[w] > b.ov.gl_Position[z];
-        cIsOut = -c.ov.gl_Position[w] > c.ov.gl_Position[z];
-
-        if (not aIsOut and not bIsOut and not cIsOut)  //abc
-            newTriangles.push_back(primitiveTriangle);
-        else if (aIsOut and not bIsOut and not cIsOut){  //Abc
-            n1 = getEdgePoint(a, b);
-            newTriangles.push_back(PrimitiveTriangle{b, c, n1});
-
-            n2 = getEdgePoint(c, a);
-            newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
-        }
-        else if (not aIsOut and bIsOut and not cIsOut){  //aBc
-            n1 = getEdgePoint(b, a);
-            newTriangles.push_back(PrimitiveTriangle{a, c, n1});
-
-            n2 = getEdgePoint(c, b);
-            newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
-        }
-        else if (not aIsOut and not bIsOut and cIsOut){  //abC
-            n1 = getEdgePoint(c, a);
-            newTriangles.push_back(PrimitiveTriangle{a, b, n1});
-
-            n2 = getEdgePoint(b, c);
-            newTriangles.push_back(PrimitiveTriangle{b, n2, n1});
-        }
-        else if (aIsOut and bIsOut and not cIsOut) //ABc
-            newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), c});
-        else if (not aIsOut and bIsOut and cIsOut) //aBC
-            newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), a});
-        else if (aIsOut and not bIsOut and cIsOut) //AbC
-            newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), b});
-    }
-    //primitiveTriangles.clear();
+    for (auto primitiveTriangle : primitiveTriangles)
+        clip(newTriangles, primitiveTriangle);
 
     /*---NDC---*/
-    for (auto & primitiveTriangle: newTriangles){
-        if (primitiveTriangle.ov1.ov.gl_Position[w] != 0){
-            primitiveTriangle.ov1.ov.gl_Position[x] /= primitiveTriangle.ov1.ov.gl_Position[w];
-            primitiveTriangle.ov1.ov.gl_Position[y] /= primitiveTriangle.ov1.ov.gl_Position[w];
-            primitiveTriangle.ov1.ov.gl_Position[z] /= primitiveTriangle.ov1.ov.gl_Position[w];
-        }
-        if (primitiveTriangle.ov2.ov.gl_Position[w]){
-            primitiveTriangle.ov2.ov.gl_Position[x] /= primitiveTriangle.ov2.ov.gl_Position[w];
-            primitiveTriangle.ov2.ov.gl_Position[y] /= primitiveTriangle.ov2.ov.gl_Position[w];
-            primitiveTriangle.ov2.ov.gl_Position[z] /= primitiveTriangle.ov2.ov.gl_Position[w];
-        }
-        if (primitiveTriangle.ov3.ov.gl_Position[w]){
-            primitiveTriangle.ov3.ov.gl_Position[x] /= primitiveTriangle.ov3.ov.gl_Position[w];
-            primitiveTriangle.ov3.ov.gl_Position[y] /= primitiveTriangle.ov3.ov.gl_Position[w];
-            primitiveTriangle.ov3.ov.gl_Position[z] /= primitiveTriangle.ov3.ov.gl_Position[w];
-        }
-    }
+    for (auto & primitiveTriangle: newTriangles)
+        ndc(primitiveTriangle);
 
     /*---VIEWPORT TRANSFORMATION---*/
-    for (auto & primitiveTriangle: newTriangles){
-        primitiveTriangle.ov1.ov.gl_Position[x] = ((primitiveTriangle.ov1.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
-        primitiveTriangle.ov1.ov.gl_Position[y] = ((primitiveTriangle.ov1.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
-
-        primitiveTriangle.ov2.ov.gl_Position[x] = ((primitiveTriangle.ov2.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
-        primitiveTriangle.ov2.ov.gl_Position[y] = ((primitiveTriangle.ov2.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
-
-        primitiveTriangle.ov3.ov.gl_Position[x] = ((primitiveTriangle.ov3.ov.gl_Position[x]+ 1.0) / 2.0) * frameBuffer->width;
-        primitiveTriangle.ov3.ov.gl_Position[y] = ((primitiveTriangle.ov3.ov.gl_Position[y] + 1.0) / 2.0) * frameBuffer->height;
-    }
+    for (auto & primitiveTriangle: newTriangles)
+        viewport_transform(primitiveTriangle);
 
     /*---RASTERIZATION---*/
     std::vector<InFragment> inFragments;
     OutFragment outFragment{};
-    for (auto & primTri: newTriangles) {
-        OutAbstractVertex vertexA = primTri.ov1;
-        OutAbstractVertex vertexB = primTri.ov2;
-        OutAbstractVertex vertexC = primTri.ov3;
-        std::vector<float> xs= {vertexA.ov.gl_Position[x], vertexB.ov.gl_Position[x], vertexC.ov.gl_Position[x],};
-        std::vector<float> ys = {vertexA.ov.gl_Position[y], vertexB.ov.gl_Position[y], vertexC.ov.gl_Position[y],};
-        // get boundaries
-        int xmin = std::floor(*std::min_element(xs.begin(), xs.end()));
-        int xmax = std::ceil(*std::max_element(xs.begin(), xs.end()));
-        int ymin = std::floor(*std::min_element(ys.begin(), ys.end()));
-        int ymax = std::ceil(*std::max_element(ys.begin(), ys.end()));
+    for (auto & primTri: newTriangles)
+        rasterize(program, inFragments, primTri);
 
-        // clip out fragments out of clip space when user change the view
-        if (xmin < 0)
-            xmin = 0;
-        if (ymin < 0)
-            ymin = 0;
-        if (xmax >= getFramebufferWidth())
-            xmax = getFramebufferWidth();
-        if (ymax >= getFramebufferHeight())
-            ymax = getFramebufferHeight();
-
-        float area = triangleSurface(vertexA, vertexB, vertexC);
-        for (int x_bound = xmin; x_bound < xmax; ++x_bound) {
-            bool prevPixelOut = true;
-            for (int y_bound = ymin; y_bound < ymax; ++y_bound) {
-                bool isInTriangle = false;
-                float deviation = 0.000976562;  // 2^-10 = 0.000976562
-
-                OutAbstractVertex pixelSample;
-                pixelSample.ov.gl_Position = glm::vec4{x_bound + 0.5, y_bound + 0.5, 0, 1};
-
-                float w0 = triangleSurface(vertexB, vertexC, pixelSample);
-                float w1 = triangleSurface(vertexC, vertexA, pixelSample);
-                float w2 = triangleSurface(vertexA, vertexB, pixelSample);
-
-                if (w0 + w1 + w2 < area * (1 + deviation) and w0 + w1 + w2 > area * (1 - deviation))
-                    isInTriangle = true;
-                // if previous pixel was in and actual pixel is out of triangle, then rest of pixels is skipped
-                if (not prevPixelOut and  not isInTriangle)
-                    break;
-                // if actual pixel is in triangle do rasterization
-                if (isInTriangle) {
-                    InFragment tmp;
-                    tmp.gl_FragCoord = pixelSample.ov.gl_Position;
-                    float l0 = w0 / area;
-                    float l1 = w1 / area;
-                    float l2 = w2 / area;
-                    float numerator = vertexA.ov.gl_Position[z] * l0 / vertexA.ov.gl_Position[w] +
-                                      vertexB.ov.gl_Position[z] * l1 / vertexB.ov.gl_Position[w] +
-                                      vertexC.ov.gl_Position[z] * l2 / vertexC.ov.gl_Position[w];
-                    float denominator = l0 / vertexA.ov.gl_Position[w] +
-                                        l1 / vertexB.ov.gl_Position[w] +
-                                        l2 / vertexC.ov.gl_Position[w];
-                    tmp.gl_FragCoord[z] = numerator / denominator;
-
-                    numerator = vertexA.ov.gl_Position[w] * l0 / vertexA.ov.gl_Position[w] +
-                                      vertexB.ov.gl_Position[w] * l1 / vertexB.ov.gl_Position[w] +
-                                      vertexC.ov.gl_Position[w] * l2 / vertexC.ov.gl_Position[w];
-                    tmp.gl_FragCoord[w] = numerator / denominator;
-
-                    for (int i = 0; i < maxAttributes; i++){
-                        denominator = l0 / vertexA.ov.gl_Position[w] +
-                                      l1 / vertexB.ov.gl_Position[w] +
-                                      l2 / vertexC.ov.gl_Position[w];
-                        switch (program->attributeType[i]){
-                            case AttributeType::FLOAT:
-                                tmp.attributes[i].v1 = (vertexA.ov.attributes[i].v1 * l0 / vertexA.ov.gl_Position[w] +
-                                                        vertexB.ov.attributes[i].v1 * l1 / vertexB.ov.gl_Position[w] +
-                                                        vertexC.ov.attributes[i].v1 * l2 / vertexC.ov.gl_Position[w])
-                                                       / denominator;
-                            case AttributeType::VEC2:
-                                tmp.attributes[i].v2 = (vertexA.ov.attributes[i].v2 * l0 / vertexA.ov.gl_Position[w] +
-                                                        vertexB.ov.attributes[i].v2 * l1 / vertexB.ov.gl_Position[w] +
-                                                        vertexC.ov.attributes[i].v2 * l2 / vertexC.ov.gl_Position[w])
-                                                       / denominator;
-                            case AttributeType::VEC3:
-                                tmp.attributes[i].v3 = (vertexA.ov.attributes[i].v3 * l0 / vertexA.ov.gl_Position[w] +
-                                                        vertexB.ov.attributes[i].v3 * l1 / vertexB.ov.gl_Position[w] +
-                                                        vertexC.ov.attributes[i].v3 * l2 / vertexC.ov.gl_Position[w])
-                                                       / denominator;
-                            case AttributeType::VEC4:
-                                tmp.attributes[i].v4 = (vertexA.ov.attributes[i].v4 * l0 / vertexA.ov.gl_Position[w] +
-                                                        vertexB.ov.attributes[i].v4 * l1 / vertexB.ov.gl_Position[w] +
-                                                        vertexC.ov.attributes[i].v4 * l2 / vertexC.ov.gl_Position[w])
-                                                       / denominator;
-                            default:
-                                break;
-                        }
-                    }
-                    inFragments.push_back(tmp);
-                }
-                prevPixelOut = not isInTriangle;
-            }
-        }
-    }
-    newTriangles.clear();
-    // depth correction, triangles which are nearer to camera should be drawn over the ones which are deeper
+    /*---FRAGMENT PROCESSOR + DEPTH CORRECTION---*/
     for (auto inFragment: inFragments){
         program->fragmentShader(outFragment, inFragment, program->uniforms);
-        auto actDepthPosition = ((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]);
-        auto actColorPositon = (((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]) * 4);
-        if (frameBuffer->depthBuffer[actDepthPosition] > inFragment.gl_FragCoord[z]){
-            frameBuffer->depthBuffer[actDepthPosition] = inFragment.gl_FragCoord[z];
-            frameBuffer->colorBuffer[actColorPositon] = denormalize_color(outFragment.gl_FragColor[0], 255, true);
-            frameBuffer->colorBuffer[actColorPositon + 1] = denormalize_color(outFragment.gl_FragColor[1], 255, true);
-            frameBuffer->colorBuffer[actColorPositon + 2] = denormalize_color(outFragment.gl_FragColor[2], 255, true);
-            frameBuffer->colorBuffer[actColorPositon + 3] = denormalize_color(outFragment.gl_FragColor[3], 255, true);
+        depth_correction(outFragment, inFragment);
+    }
+}
+
+/**
+ * @brief Function does clipping of Primitive triangle.
+ * If any of vertices lays outside of near plane, then new one or two PrimitiveTriangles are created.
+ * @param newTriangles vector of new PrimitiveTriangles
+ * @param primitiveTriangle actual processed PrimitiveTriangle
+ */
+void clip(std::vector<PrimitiveTriangle> &newTriangles, const PrimitiveTriangle &primitiveTriangle){
+    int x = 0, y = 1, z = 2, w = 3;
+    OutAbstractVertex a, b, c, n1, n2;
+    bool aIsOut, bIsOut, cIsOut;
+    a = primitiveTriangle.ov1;
+    b = primitiveTriangle.ov2;
+    c = primitiveTriangle.ov3;
+    aIsOut = -a.ov.gl_Position[w] > a.ov.gl_Position[z];
+    bIsOut = -b.ov.gl_Position[w] > b.ov.gl_Position[z];
+    cIsOut = -c.ov.gl_Position[w] > c.ov.gl_Position[z];
+
+    if (not aIsOut and not bIsOut and not cIsOut)  //abc
+        newTriangles.push_back(primitiveTriangle);
+    else if (aIsOut and not bIsOut and not cIsOut){  //Abc
+        n1 = getEdgePoint(a, b);
+        newTriangles.push_back(PrimitiveTriangle{b, c, n1});
+
+        n2 = getEdgePoint(c, a);
+        newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
+    }
+    else if (not aIsOut and bIsOut and not cIsOut){  //aBc
+        n1 = getEdgePoint(b, a);
+        newTriangles.push_back(PrimitiveTriangle{a, c, n1});
+
+        n2 = getEdgePoint(c, b);
+        newTriangles.push_back(PrimitiveTriangle{c, n2, n1});
+    }
+    else if (not aIsOut and not bIsOut and cIsOut){  //abC
+        n1 = getEdgePoint(c, a);
+        newTriangles.push_back(PrimitiveTriangle{a, b, n1});
+
+        n2 = getEdgePoint(b, c);
+        newTriangles.push_back(PrimitiveTriangle{b, n2, n1});
+    }
+    else if (aIsOut and bIsOut and not cIsOut) //ABc
+        newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), c});
+    else if (not aIsOut and bIsOut and cIsOut) //aBC
+        newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), a});
+    else if (aIsOut and not bIsOut and cIsOut) //AbC
+        newTriangles.push_back(PrimitiveTriangle{getEdgePoint(c, a), getEdgePoint(c, b), b});
+}
+
+/**
+ * @brief Triangles which are nearer to camera should be drawn over the ones which are deeper in space.
+ * @param outFragment OutFragment contains color values
+ * @param inFragment InFragment contains depth value
+ */
+void GPU::depth_correction(const OutFragment &outFragment, const InFragment &inFragment) const {
+    int x = 0, y = 1, z = 2;
+    unsigned int actDepthPosition = ((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]);
+    unsigned int actColorPositon = (((int)inFragment.gl_FragCoord[y] * frameBuffer->width + (int)inFragment.gl_FragCoord[x]) * 4);
+    if (frameBuffer->depthBuffer[actDepthPosition] > inFragment.gl_FragCoord[z]){
+        frameBuffer->depthBuffer[actDepthPosition] = inFragment.gl_FragCoord[z];
+        frameBuffer->colorBuffer[actColorPositon] = denormalize_color(outFragment.gl_FragColor[0], 255, true);
+        frameBuffer->colorBuffer[actColorPositon + 1] = denormalize_color(outFragment.gl_FragColor[1], 255, true);
+        frameBuffer->colorBuffer[actColorPositon + 2] = denormalize_color(outFragment.gl_FragColor[2], 255, true);
+        frameBuffer->colorBuffer[actColorPositon + 3] = denormalize_color(outFragment.gl_FragColor[3], 255, true);
+    }
+}
+
+/**
+ * @brief Function does viewport transformation
+ * @param primitiveTriangle PrimitiveTriangle to be transformed
+ */
+void GPU::viewport_transform(PrimitiveTriangle &primitiveTriangle) const {
+    int x = 0, y = 1;
+    primitiveTriangle.ov1.ov.gl_Position[x] = ((primitiveTriangle.ov1.ov.gl_Position[x] + 1.0) / 2.0) * this->frameBuffer->width;
+    primitiveTriangle.ov1.ov.gl_Position[y] = ((primitiveTriangle.ov1.ov.gl_Position[y] + 1.0) / 2.0) * this->frameBuffer->height;
+
+    primitiveTriangle.ov2.ov.gl_Position[x] = ((primitiveTriangle.ov2.ov.gl_Position[x]+ 1.0) / 2.0) * this->frameBuffer->width;
+    primitiveTriangle.ov2.ov.gl_Position[y] = ((primitiveTriangle.ov2.ov.gl_Position[y] + 1.0) / 2.0) * this->frameBuffer->height;
+
+    primitiveTriangle.ov3.ov.gl_Position[x] = ((primitiveTriangle.ov3.ov.gl_Position[x]+ 1.0) / 2.0) * this->frameBuffer->width;
+    primitiveTriangle.ov3.ov.gl_Position[y] = ((primitiveTriangle.ov3.ov.gl_Position[y] + 1.0) / 2.0) * this->frameBuffer->height;
+}
+
+/**
+ * @brief Function does NDC transformation
+ * @param primitiveTriangle PrimitiveTriangle which will be transformed
+ */
+void ndc(PrimitiveTriangle &primitiveTriangle){
+    int x = 0, y = 1, z = 2, w = 3;
+    if (primitiveTriangle.ov1.ov.gl_Position[w]){
+        primitiveTriangle.ov1.ov.gl_Position[x] /= primitiveTriangle.ov1.ov.gl_Position[w];
+        primitiveTriangle.ov1.ov.gl_Position[y] /= primitiveTriangle.ov1.ov.gl_Position[w];
+        primitiveTriangle.ov1.ov.gl_Position[z] /= primitiveTriangle.ov1.ov.gl_Position[w];
+    }
+    if (primitiveTriangle.ov2.ov.gl_Position[w]){
+        primitiveTriangle.ov2.ov.gl_Position[x] /= primitiveTriangle.ov2.ov.gl_Position[w];
+        primitiveTriangle.ov2.ov.gl_Position[y] /= primitiveTriangle.ov2.ov.gl_Position[w];
+        primitiveTriangle.ov2.ov.gl_Position[z] /= primitiveTriangle.ov2.ov.gl_Position[w];
+    }
+    if (primitiveTriangle.ov3.ov.gl_Position[w]){
+        primitiveTriangle.ov3.ov.gl_Position[x] /= primitiveTriangle.ov3.ov.gl_Position[w];
+        primitiveTriangle.ov3.ov.gl_Position[y] /= primitiveTriangle.ov3.ov.gl_Position[w];
+        primitiveTriangle.ov3.ov.gl_Position[z] /= primitiveTriangle.ov3.ov.gl_Position[w];
+    }
+}
+
+/**
+ * @brief Function rasterizes PrimitiveTriangle and store it into vector of InFragments.
+ * @param program program with shaders
+ * @param inFragments vector of Infragments
+ * @param primTri PrimitiveTriangle to rasterize
+ */
+void GPU::rasterize(const Program *program, std::vector<InFragment> &inFragments, const PrimitiveTriangle &primTri) {
+    int x = 0, y = 1, z = 2, w = 3;
+    OutAbstractVertex vertexA = primTri.ov1;
+    OutAbstractVertex vertexB = primTri.ov2;
+    OutAbstractVertex vertexC = primTri.ov3;
+    std::vector<float> xs= {vertexA.ov.gl_Position[x], vertexB.ov.gl_Position[x], vertexC.ov.gl_Position[x],};
+    std::vector<float> ys = {vertexA.ov.gl_Position[y], vertexB.ov.gl_Position[y], vertexC.ov.gl_Position[y],};
+    // Get boundaries
+    int xmin = std::floor(*std::min_element(xs.begin(), xs.end()));
+    int xmax = std::ceil(*std::max_element(xs.begin(), xs.end()));
+    int ymin = std::floor(*std::min_element(ys.begin(), ys.end()));
+    int ymax = std::ceil(*std::max_element(ys.begin(), ys.end()));
+
+    // Clip out fragments out of clip space when user change the view
+    if (xmin < 0)
+        xmin = 0;
+    if (ymin < 0)
+        ymin = 0;
+    if (xmax >= getFramebufferWidth())
+        xmax = getFramebufferWidth();
+    if (ymax >= getFramebufferHeight())
+        ymax = getFramebufferHeight();
+
+    float area = triangleSurface(vertexA, vertexB, vertexC);
+    for (int x_bound = xmin; x_bound < xmax; ++x_bound) {
+        bool prevPixelOut = true;
+        for (int y_bound = ymin; y_bound < ymax; ++y_bound) {
+            bool isInTriangle = false;
+            float deviation = 0.000976562;  // 2^-10 = 0.000976562
+
+            OutAbstractVertex pixelSample;
+            pixelSample.ov.gl_Position = glm::vec4{x_bound + 0.5, y_bound + 0.5, 0, 1};
+
+            float w0 = triangleSurface(vertexB, vertexC, pixelSample);
+            float w1 = triangleSurface(vertexC, vertexA, pixelSample);
+            float w2 = triangleSurface(vertexA, vertexB, pixelSample);
+
+            // Adding/subtracting little deviation to avoid float inaccuracy
+            if (w0 + w1 + w2 < area * (1 + deviation) and w0 + w1 + w2 > area * (1 - deviation))
+                isInTriangle = true;
+            // if previous pixel was in and actual pixel is out of triangle, then rest of pixels is skipped
+            if (not prevPixelOut and  not isInTriangle)
+                break;
+            // If actual pixel is in triangle do rasterization
+            if (isInTriangle) {
+                InFragment tmp;
+                tmp.gl_FragCoord = pixelSample.ov.gl_Position;
+                float l0 = w0 / area;
+                float l1 = w1 / area;
+                float l2 = w2 / area;
+                float numerator = vertexA.ov.gl_Position[z] * l0 / vertexA.ov.gl_Position[w] +
+                                  vertexB.ov.gl_Position[z] * l1 / vertexB.ov.gl_Position[w] +
+                                  vertexC.ov.gl_Position[z] * l2 / vertexC.ov.gl_Position[w];
+                float denominator = l0 / vertexA.ov.gl_Position[w] +
+                                    l1 / vertexB.ov.gl_Position[w] +
+                                    l2 / vertexC.ov.gl_Position[w];
+                tmp.gl_FragCoord[z] = numerator / denominator;
+
+                numerator = vertexA.ov.gl_Position[w] * l0 / vertexA.ov.gl_Position[w] +
+                                  vertexB.ov.gl_Position[w] * l1 / vertexB.ov.gl_Position[w] +
+                                  vertexC.ov.gl_Position[w] * l2 / vertexC.ov.gl_Position[w];
+                tmp.gl_FragCoord[w] = numerator / denominator;
+
+                for (int i = 0; i < maxAttributes; i++){
+                    denominator = l0 / vertexA.ov.gl_Position[w] +
+                                  l1 / vertexB.ov.gl_Position[w] +
+                                  l2 / vertexC.ov.gl_Position[w];
+                    switch (program->attributeType[i]){
+                        case AttributeType::FLOAT:
+                            tmp.attributes[i].v1 = (vertexA.ov.attributes[i].v1 * l0 / vertexA.ov.gl_Position[w] +
+                                                    vertexB.ov.attributes[i].v1 * l1 / vertexB.ov.gl_Position[w] +
+                                                    vertexC.ov.attributes[i].v1 * l2 / vertexC.ov.gl_Position[w])
+                                                   / denominator;
+                        case AttributeType::VEC2:
+                            tmp.attributes[i].v2 = (vertexA.ov.attributes[i].v2 * l0 / vertexA.ov.gl_Position[w] +
+                                                    vertexB.ov.attributes[i].v2 * l1 / vertexB.ov.gl_Position[w] +
+                                                    vertexC.ov.attributes[i].v2 * l2 / vertexC.ov.gl_Position[w])
+                                                   / denominator;
+                        case AttributeType::VEC3:
+                            tmp.attributes[i].v3 = (vertexA.ov.attributes[i].v3 * l0 / vertexA.ov.gl_Position[w] +
+                                                    vertexB.ov.attributes[i].v3 * l1 / vertexB.ov.gl_Position[w] +
+                                                    vertexC.ov.attributes[i].v3 * l2 / vertexC.ov.gl_Position[w])
+                                                   / denominator;
+                        case AttributeType::VEC4:
+                            tmp.attributes[i].v4 = (vertexA.ov.attributes[i].v4 * l0 / vertexA.ov.gl_Position[w] +
+                                                    vertexB.ov.attributes[i].v4 * l1 / vertexB.ov.gl_Position[w] +
+                                                    vertexC.ov.attributes[i].v4 * l2 / vertexC.ov.gl_Position[w])
+                                                   / denominator;
+                        default:
+                            break;
+                    }
+                }
+                inFragments.push_back(tmp);
+            }
+            prevPixelOut = not isInTriangle;
         }
     }
-    inFragments.clear();
 }
 
 /**
@@ -868,7 +872,7 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
     OutVertex outVertex;
     OutAbstractVertex outAbstractVertex;
 
-    // if indexing is enabled, use indexing, else use counter `i`
+    // If indexing is enabled, use indexing, else use counter `i`
     int index = 0;
     for (int i = 0; i < nofVertices; i++) {
         if (vertexPullerSettings->indexing.enabled) {
@@ -883,7 +887,7 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
             index = i;
 
         int k = 0;
-        // set attributes for each enabled head with valid head buffer
+        // Set attributes for each enabled head with valid head buffer
         for (auto & attribute : inVertex.attributes) {
             auto head = vertexPullerSettings->heads[k];
             if (head.enabled and isBuffer(head.buffer_id)) {
@@ -913,19 +917,25 @@ void GPU::vertexProcessor(uint32_t nofVertices, OutAbstractVertex * outAbstractV
             k++;
         }
         inVertex.gl_VertexID = index;
-        // vertex shader invocation
         program->vertexShader(outVertex, inVertex, program->uniforms);
         outAbstractVertex.ov = outVertex;
         outAbstractVertices[i] = outAbstractVertex;
     }
 }
-
+/**
+ * @brief FrameBuffer constructor, create a new frame buffer instance and allocate new color and depth buffers
+ * @param width width of the new frame buffer
+ * @param height height of the new frame buffer
+ */
 FrameBuffer::FrameBuffer(uint32_t width, uint32_t height) {
     this->height = height;
     this->width = width;
     this->colorBuffer = new  uint8_t[width * height * 4];
     this->depthBuffer = new float[width * height];
 }
+/**
+ * @brief FrameBuffer destructor, deallocate buffers
+ */
 FrameBuffer::~FrameBuffer(){
     delete[] this->colorBuffer;
     delete[] this->depthBuffer;
@@ -969,10 +979,10 @@ OutAbstractVertex getEdgePoint(OutAbstractVertex a, OutAbstractVertex b){
     float denominator = (b.ov.gl_Position[3] - a.ov.gl_Position[3] + b.ov.gl_Position[2] - a.ov.gl_Position[2]);
     float t =  numerator/denominator;
     OutAbstractVertex x;
-    // count new coordinates
+    // Count new coordinates
     x.ov.gl_Position = a.ov.gl_Position + t * (b.ov.gl_Position - a.ov.gl_Position);
 
-    // count new attributes
+    // Count new attributes
     for (int i = 0; i < maxAttributes; i++) {
         switch (a.attributeType[i]) {
             case AttributeType::FLOAT: {
@@ -1007,7 +1017,11 @@ OutAbstractVertex getEdgePoint(OutAbstractVertex a, OutAbstractVertex b){
  * @return triangle's surface
  */
 float triangleSurface(OutAbstractVertex &a, OutAbstractVertex &b, OutAbstractVertex &c){
-    return std::abs((a.ov.gl_Position[0] * (b.ov.gl_Position[1] - c.ov.gl_Position[1]) +
-            b.ov.gl_Position[0] * (c.ov.gl_Position[1] - a.ov.gl_Position[1]) +
-            c.ov.gl_Position[0] * (a.ov.gl_Position[1] - b.ov.gl_Position[1]))/2);
+    float aX = a.ov.gl_Position[0];
+    float aY = a.ov.gl_Position[1];
+    float bX = b.ov.gl_Position[0];
+    float bY = b.ov.gl_Position[1];
+    float cX = c.ov.gl_Position[0];
+    float cY = c.ov.gl_Position[1];
+    return std::abs((aX * (bY - cY) + bX * (cY - aY) + cX * (aY - bY))/2);
 }

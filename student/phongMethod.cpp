@@ -135,25 +135,26 @@ void phong_FS(OutFragment &outFragment, InFragment const &inFragment, Uniforms c
     glm::vec4 color = green;
     float devnull;
 
+    // Generate fragment's basic color - green or yellow
     float texture = modff((x + sinf(y * 10.f) * 0.1f) * 5.f, &devnull);
-
     if ((texture > .5f) or (texture < 0.f and (texture) > -.5f))
         color = yellow;
 
+    // Generate a "snow" at top of the bunny, based on normal vector direction
     if (normal[1] > 0.f){
         glm::vec3 normalized_normal = glm::normalize(normal);
         float t = normalized_normal[1] * normalized_normal[1];
         color += t * (white - color);
     }
 
-    // Count diffuse light
+    // Add diffuse light
     glm::vec3 lightVec = glm::normalize(uniforms.uniform[2].v3 - inFragment.attributes[0].v3);
     glm::vec3 normalVec = glm::normalize(inFragment.attributes[1].v3);
     auto normLightVec = dotVec3(normalVec, lightVec);
 
-    color = normLightVec * white * color;
+    color *= normLightVec * white;
 
-    // specular light
+    // Add specular component
     glm::vec3 cameraVec = glm::normalize(uniforms.uniform[3].v3 - inFragment.attributes[0].v3);
     if (normLightVec != 0 and dotVec3(cameraVec, normalVec) != 0){
         glm::vec3 r = glm::normalize(2 * normLightVec * normalVec - lightVec);
